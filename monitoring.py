@@ -12,7 +12,7 @@ top_output = open("./monitoring/top_output.txt", "w+")
 
 # Calling 'top' and 'iptraf-ng' processes.
 top = subprocess.Popen(["top","-u", "libvirt-qemu", "-d", "1", "-b"], stdout = top_output)
-network = subprocess.Popen(["iptraf-ng", "-i", "all", "-B", "-L", "./monitoring/network_output.txt"])
+network = subprocess.Popen(["iptraf", "-u", "-i", "all", "-B", "-L", "./monitoring/network_output.txt"])
 
 
 # Waiting for users input to finish the monitoring process
