@@ -1,7 +1,14 @@
 bcrypt==3.2.0
 cffi==1.14.3
 cryptography==3.2.1
+gevent==20.9.0
+greenlet==0.4.17
 paramiko==2.7.2
 pycparser==2.20
+pycryptodome==3.9.9
 PyNaCl==1.4.0
 six==1.15.0
+ssh-python==0.8.0.post1
+ssh2-python==0.23.0
+zope.event==4.5.0
+zope.interface==5.2.0
