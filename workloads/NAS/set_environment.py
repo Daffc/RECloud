@@ -43,21 +43,34 @@ def createSSHKeys(path):
 
   key = RSA.generate(2048)
  
-  private_key = key.export_key()
+  private_key = key.exportKey('PEM')
   with open(path + "/id_rsa", "wb") as private:
     private.write(private_key)
-
-  public_key = key.publickey().export_key()
+ 
+  public_key = key.exportKey('OpenSSH')
   with open(path + "/id_rsa.pub", "wb") as public:
     public.write(public_key)
+  
+  with open(path + "/authorized_keys", "wb") as public:
+    public.write(public_key)
+
 
 # Sending keys to Virtual Machines
-def sendFiles(user, password, hosts, origin, destination):
-  client = ParallelSSHClient(hosts, user=user, password=password)
-  cmd = client.scp_send(origin, destination, recurse=True)
+def sendFiles(clients, origin, destination):
+  cmd = clients.scp_send(origin, destination, recurse=True)
   joinall(cmd, raise_error=True)
 
-#Main code.
+# Changing key permission inside the Virtual Machines.
+def changeKeyPermissions(clients):
+  cmd = clients.run_command('chmod 644 .ssh/id_rsa.pub .ssh/authorized_keys')
+  clients.pool.join()
+
+  cmd = clients.run_command('chmod 600 .ssh/id_rsa')
+  clients.pool.join()
+
+#=============================
+#	Main code
+#=============================
 user, password = recoverCredentials()
 environment = recoverEnvironmentInformation()
 hosts = recoverHosts(environment)
@@ -67,4 +80,11 @@ createFolder("./tmp");
 
 createSSHKeys("./tmp/.ssh")
 
-sendFiles(user, password, hosts, "./tmp/.ssh", "./.ssh")
+# Definind Connection with Virtual Machines
+clients = ParallelSSHClient(hosts, user=user, password=password)
+
+# Sending keys and authorized_keys to the clients
+sendFiles(clients, "./tmp/.ssh/", "./.ssh")
+
+# Changing permission of keys and authorized_keys in clients.
+changeKeyPermissions(clients)
