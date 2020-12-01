@@ -68,6 +68,18 @@ def changeKeyPermissions(clients):
   cmd = clients.run_command('chmod 600 .ssh/id_rsa')
   clients.pool.join()
 
+# Cross connecting all the Virtual Machines
+def crossConnect(hosts, clients):
+  
+  # Joining all the hosts in the 'strHost ' string, separated by one space.
+  strHosts = ' '.join(map(str, hosts))
+  
+  # Generating the 'known_hosts' file with fingerprint of all the VM.
+  cmd = clients.run_command('ssh-keyscan ' + strHosts + '> ~/.ssh/known_hosts')
+  clients.pool.join()    
+
+
+
 #=============================
 #	Main code
 #=============================
@@ -88,3 +100,5 @@ sendFiles(clients, "./tmp/.ssh/", "./.ssh")
 
 # Changing permission of keys and authorized_keys in clients.
 changeKeyPermissions(clients)
+
+crossConnect(hosts, clients)
