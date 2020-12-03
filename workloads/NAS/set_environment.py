@@ -37,7 +37,19 @@ class RemoteCommand:
     print(f'Limit Attemptions ({tries}) during \'{self._command}\'. Exiting program.', file=sys.stderr)
     exit(1)
 
-# Creating folders
+# Create, verify and return connection with Vitual Machines.
+def defineConnection(user, password, hosts):
+  print(f'Defining connection with hosts ({hosts})...', flush=True) 
+  clients = ParallelSSHClient(hosts, user=user, password=password)
+
+  output = clients.connect_auth()
+  joinall(output, raise_error=True)
+
+  print('OK!', flush=True)
+
+  return clients
+
+# Creating folders.
 def createFolder(path):
    
   print(f'Verifying existence of \'{path}\'... ', flush=True) 
@@ -160,13 +172,15 @@ user, password = recoverCredentials()
 environment = recoverEnvironmentInformation()
 hosts = recoverHosts(environment)
 
-# Creating Temporary folder.
-createFolder("./tmp");
-
-createSSHKeys("./tmp/.ssh")
 
 # Definind Connection with Virtual Machines
-clients = ParallelSSHClient(hosts, user=user, password=password)
+clients = defineConnection(user, password, hosts)
+
+# Creating Temporary folder.
+createFolder("./tmp")
+
+# Generating RSA keys.
+createSSHKeys("./tmp/.ssh")
 
 # Sending keys and authorized_keys to the clients
 sendFiles(clients, "./tmp/.ssh/", "./.ssh")
