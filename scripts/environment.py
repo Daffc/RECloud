@@ -37,7 +37,6 @@ data['machines'] = []
 
 #iterating over each VM process entry, recovering its informaion
 for line in saida_procs.splitlines():
-  
   # Spliting lines and recovering information separately.
   line_split = line.decode("utf-8").split()
   pid = line_split[0]  
