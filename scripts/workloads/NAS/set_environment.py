@@ -1,3 +1,5 @@
+#!/usr/bin/env python3.9
+
 import json
 import os
 import sys
@@ -93,27 +95,41 @@ def recoverEnvironmentInformation():
   
   return env
 
+# Generate SSH keys inside 'path'
 def createSSHKeys(path):
 
   # Create folder to store RSA keys.
   createFolder(path)
-  
+
   print(f'Generating key to access the Virtual machines... ', flush=True)
   key = RSA.generate(2048)
- 
+
+  # Checking if the key files alread exists.
+  if(os.path.isfile(path+"/id_rsa") and os.path.isfile(path+"/id_rsa.pub") and os.path.isfile(path+"/authorized_keys")):
+    while True:
+      overwrite = input("\t\033[1;33;40m The keys already exist. Do you want to overwrite them? 'Y', 'N': \033[0m")
+      if(overwrite.lower() == 'y'):
+        print("\tProceeding with key generation...")
+        break
+      elif(overwrite.lower() == 'n'):
+        print("\tKey generation canceled!")
+        return
+      else:
+        print("\t\033[1;33;40m Please, answer with 'Y' or 'N': \033[0m")
+
+  # Generating keys
   private_key = key.exportKey('PEM')
   with open(path + "/id_rsa", "wb") as private:
     private.write(private_key)
- 
+
   public_key = key.exportKey('OpenSSH')
   with open(path + "/id_rsa.pub", "wb") as public:
     public.write(public_key)
-  
+
   with open(path + "/authorized_keys", "wb") as public:
     public.write(public_key)
 
   print('OK!', flush=True)
-
 
 # Sending keys to Virtual Machines
 def sendFiles(clients, origin, destination):
@@ -177,13 +193,13 @@ hosts = recoverHosts(environment)
 clients = defineConnection(user, password, hosts)
 
 # Creating Temporary folder.
-createFolder("./tmp")
+createFolder("./keys")
 
 # Generating RSA keys.
-createSSHKeys("./tmp/.ssh")
+createSSHKeys("./keys/.ssh")
 
 # Sending keys and authorized_keys to the clients
-sendFiles(clients, "./tmp/.ssh/", "./.ssh")
+sendFiles(clients, "./keys/.ssh/", "./.ssh")
 
 # Changing permission of keys and authorized_keys in clients.
 changeKeyPermissions(clients)
