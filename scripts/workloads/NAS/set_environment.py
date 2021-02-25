@@ -10,6 +10,12 @@ from pssh.exceptions import Timeout
 from gevent import joinall
 
 
+#=============================
+#   Some General Definitions
+#=============================
+NPB_VERSION = 'NPB3.3.1'
+
+
 class RemoteCommand: 
   
   def __init__(self, clients, command, timeout, sudo):
@@ -107,7 +113,7 @@ def createSSHKeys(path):
   # Checking if the key files alread exists.
   if(os.path.isfile(path+"/id_rsa") and os.path.isfile(path+"/id_rsa.pub") and os.path.isfile(path+"/authorized_keys")):
     while True:
-      overwrite = input("\t\033[1;33;40m The keys already exist. Do you want to overwrite them? 'Y', 'N': \033[0m")
+      overwrite = input("\t\033[1;33;40mThe keys already exist. Do you want to overwrite them? 'Y', 'N': \033[0m")
       if(overwrite.lower() == 'y'):
         print("\tProceeding with key generation...")
         break
@@ -162,7 +168,7 @@ def crossConnect(hosts, clients):
 
   print('OK!', flush=True)  
 
-def isntallDependences(clients, password):
+def installDependences(clients, password):
   
   print(f'Setting commands to "Noninteractive"... ', flush=True) 
   RemoteCommand(clients, 'echo "debconf debconf/frontend select Noninteractive" | echo '+ password +' | sudo -S debconf-set-selections', 10, False).remoteCommandHandler()
@@ -180,6 +186,25 @@ def isntallDependences(clients, password):
     RemoteCommand(clients, 'echo '+ password +' | sudo -S apt-get install '+ dependence +' -y', 20, False).remoteCommandHandler()
     print('OK!', flush=True)
   
+def installNPB(clients, password):
+
+  print(f'Setting commands to "Noninteractive"... ', flush=True)
+  RemoteCommand(clients, 'echo "debconf debconf/frontend select Noninteractive" | echo '+ password +' | sudo -S debconf-set-selections', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
+
+  print(f'Downloading {NPB_VERSION}.tar.gz... ', flush=True)
+  RemoteCommand(clients,f'wget \'https://www.nas.nasa.gov/assets/npb/{NPB_VERSION}.tar.gz\'', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
+
+  print(f'Decompressing {NPB_VERSION}.tag.gz... ', flush=True)
+  RemoteCommand(clients,f'tar -xf {NPB_VERSION}.tar.gz', 10, False).remoteCommandHandler()
+  RemoteCommand(clients,f'rm {NPB_VERSION}.tar.gz', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
+
+  print(f'Sending  \'make.def\' and \'suite.def\'... ', flush=True)
+  sendFiles(clients, "./config/", f"./{NPB_VERSION}/NPB3.3-MPI/config/")
+  print('OK!', flush=True)
+
 
 #=============================
 #	Main code
@@ -208,4 +233,8 @@ changeKeyPermissions(clients)
 crossConnect(hosts, clients)
 
 # Intalling Dependeces for MPI
-isntallDependences(clients, password)
+installDependences(clients, password)
+
+# Installing NPB3.3.1
+installNPB(clients, password)
+
