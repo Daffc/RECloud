@@ -18,7 +18,7 @@ network = subprocess.Popen(["iptraf", "-u", "-i", "all", "-B", "-L", "./monitori
 
 
 # Waiting for users input to finish the monitoring process
-input("Digita ai:")
+input("Press any key to interrupt monitoring:")
 
 
 # killing the 'top' and 'iptraf-ng' processes.
