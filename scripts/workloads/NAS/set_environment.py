@@ -205,6 +205,9 @@ def installNPB(clients, password):
   sendFiles(clients, "./config/", f"./{NPB_VERSION}/NPB3.3-MPI/config/")
   print('OK!', flush=True)
 
+  print(f'Compiling {NPB_VERSION} Programs according to \'suite.def\'... ', flush=True)
+  RemoteCommand(clients,f'make suite -C ~/NPB3.3.1/NPB3.3-MPI ', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
 
 #=============================
 #	Main code
