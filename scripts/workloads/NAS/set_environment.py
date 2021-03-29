@@ -14,7 +14,7 @@ from gevent import joinall
 #   Some General Definitions
 #=============================
 NPB_VERSION = 'NPB3.3.1'
-
+PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 
 class RemoteCommand: 
   
@@ -91,7 +91,7 @@ def recoverCredentials():
 #Recovering json environment information.
 def recoverEnvironmentInformation():
   
-  path =  "../../monitoring/environment.json" 
+  path =  PROGRAM_PATH +"/../../monitoring/environment.json" 
   print(f'Recovering environment informtion (\'{path}\')... ', flush=True)
   
   with open(path, "r") as environment_file:
@@ -202,7 +202,7 @@ def installNPB(clients, password):
   print('OK!', flush=True)
 
   print(f'Sending  \'make.def\' and \'suite.def\'... ', flush=True)
-  sendFiles(clients, "./config/", f"./{NPB_VERSION}/NPB3.3-MPI/config/")
+  sendFiles(clients, PROGRAM_PATH + "/config/", f"./{NPB_VERSION}/NPB3.3-MPI/config/")
   print('OK!', flush=True)
 
   print(f'Compiling {NPB_VERSION} Programs according to \'suite.def\'... ', flush=True)
