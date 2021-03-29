@@ -6,12 +6,16 @@ import os.path
 import socket
 import collections
 
+
+PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
+
 #initiating json structure
 data = {}
 
-if(not os.path.isdir('./monitoring')):
+if(not os.path.isdir(f'{PROGRAM_PATH}/monitoring')):
   #creating monitoring folder
-  subprocess.call(['mkdir', 'monitoring'])
+  print('OK!', flush=True)                                                                                          
+  subprocess.call(['mkdir', f'{PROGRAM_PATH}/monitoring'])
 
 #Recovering 'hostname' and outputing it in 'env_file'
 hostname = socket.gethostname() 
@@ -65,6 +69,6 @@ for line in saida_procs.splitlines():
   })	  
 
 # Storing all the 'data' information in 'envirionment.json'
-with open('./monitoring/environment.json', 'w') as env_file:
+with open(f'{PROGRAM_PATH}/monitoring/environment.json', 'w') as env_file:
     json.dump(data, env_file)
 #
