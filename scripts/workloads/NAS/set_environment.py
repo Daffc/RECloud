@@ -49,7 +49,7 @@ def installNPB(clients, password):
   print('OK!', flush=True)
 
   print(f'Sending  \'make.def\' and \'suite.def\'... ', flush=True)
-  helper.sendFiles(clients, PROGRAM_PATH + "/config/", f"./{NPB_VERSION}/NPB3.3-MPI/config/")
+  helper.sendFiles(clients, f'{PROGRAM_PATH}/config/', f"./{NPB_VERSION}/NPB3.3-MPI/config/")
   print('OK!', flush=True)
 
   print(f'Compiling {NPB_VERSION} Programs according to \'suite.def\'... ', flush=True)
@@ -67,13 +67,13 @@ hosts = helper.recoverHosts(PROGRAM_PATH +"/../../monitoring/environment.json", 
 clients = helper.defineConnection(user, password, hosts)
 
 # Creating Temporary folder.
-helper.createFolder("./keys")
+helper.createFolder(f'{PROGRAM_PATH}/keys')
 
 # Generating RSA keys.
-helper.createSSHKeys("./keys/.ssh")
+helper.createSSHKeys(f'{PROGRAM_PATH}/keys/.ssh')
 
 # Sending keys and authorized_keys to the clients
-helper.sendFiles(clients, "./keys/.ssh/", "./.ssh")
+helper.sendFiles(clients, f'{PROGRAM_PATH}/keys/.ssh/', "./.ssh")
 
 # Changing permission of keys and authorized_keys in clients.
 helper.changeKeyPermissions(clients)
