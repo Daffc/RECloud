@@ -13,18 +13,6 @@ NPB_VERSION = 'NPB3.3.1'
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
-# Cross connecting all the Virtual Machines
-def crossConnect(hosts, clients):
- 
-  print(f'Generating \'know_hosts\' file for each Virtual Machine... ', flush=True)   
-  # Joining all the hosts in the 'strHost ' string, separated by one space.
-  strHosts = ' '.join(map(str, hosts))
-   
-  # Generating the 'known_hosts' file with fingerprint of all the VM.
-  RemoteCommand(clients, 'ssh-keyscan -t rsa -H ' + strHosts + '> ~/.ssh/known_hosts', 10, False).remoteCommandHandler()
-
-  print('OK!', flush=True)  
-
 # Installing NPB dependencies for each VM in 'clients'
 def installDependences(clients, password):
   
@@ -91,7 +79,7 @@ helper.sendFiles(clients, "./keys/.ssh/", "./.ssh")
 helper.changeKeyPermissions(clients)
 
 # Cross defining fingerprint for all Virtual Machines.
-crossConnect(hosts, clients)
+helper.crossConnect(hosts, clients)
 
 # Intalling Dependeces for MPI
 installDependences(clients, password)

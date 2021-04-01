@@ -81,6 +81,18 @@ def recoverHosts(path, structure):
 
   return hosts
 
+# Cross connecting all the Virtual Machines
+def crossConnect(hosts, clients):
+
+  print(f'Generating \'know_hosts\' file for each Virtual Machines {clients.hosts}... ', flush=True)
+  # Joining all the hosts in the 'strHost ' string, separated by one space.
+  strHosts = ' '.join(map(str, hosts))
+
+  # Generating the 'known_hosts' file with fingerprint of all the VM.
+  RemoteCommand(clients, 'ssh-keyscan -t rsa -H ' + strHosts + '> ~/.ssh/known_hosts', 10, False).remoteCommandHandler()
+
+  print('OK!', flush=True)
+
 # Creating folders.
 def createFolder(path):
    
@@ -99,6 +111,15 @@ def sendFiles(clients, origin, destination):
   print(f'Sending files to {clients.hosts} (from \'{origin}\' to \'{destination}\')... ', flush=True)
 
   output = clients.scp_send(origin, destination, recurse=True)
+  joinall(output, raise_error=True)
+
+  print('OK!', flush=True)
+
+# Sending files across the "clients" according to the 'origin' and 'destination' folders.
+def receiveFiles(clients, origin, destination):
+  print(f'Receiving files from {clients.hosts} (from \'{origin}\' to \'{destination}\')... ', flush=True)
+
+  output = clients.scp_recv(origin, destination, recurse=True)
   joinall(output, raise_error=True)
 
   print('OK!', flush=True)
@@ -158,3 +179,4 @@ def changeKeyPermissions(clients):
   RemoteCommand(clients, 'chmod 600 .ssh/id_rsa', 10, False).remoteCommandHandler()
   
   print('OK!', flush=True)
+
