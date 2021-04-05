@@ -20,7 +20,7 @@ def outputVMList(clients, origin, destination):
   print(f'Listing VM from {clients.hosts}...', flush=True)
   
   envirnment_files = os.listdir(origin)
-  with open(f'{destination}',"w") as output_file:
+  with open(destination,"w") as output_file:
     for ef in envirnment_files:
       print(f'\t from \'{ef}\':')
       with open(f'{origin}/{ef}', "r") as environment_file:
@@ -49,7 +49,7 @@ def crossConnectAll(user, password, vm_file_path):
 user, password = helper.recoverCredentials()
 hosts = helper.recoverHosts(f'{PROGRAM_PATH}/host_list', FileType.TEXT)
 
-# Definind Connection with Virtual Machines
+# Definind Connection with 'host' Machines
 clients = helper.defineConnection(user, password, hosts)
 
 # Listing Virtual Machines from 'clients' Files

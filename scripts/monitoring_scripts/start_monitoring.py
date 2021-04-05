@@ -5,42 +5,36 @@ import signal
 import time
 import subprocess
 
+from sig_helper import GracefulKiller
+
 #=============================
 #   Some General Definitions
 #=============================
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
-
-
-# Handling the SIGTERM signal.
-class GracefulKiller:
-  kill_now = False
-  def __init__(self):
-    signal.signal(signal.SIGINT, self.exit_gracefully)
-    signal.signal(signal.SIGTERM, self.exit_gracefully)
-
-  def exit_gracefully(self,signum, frame):
-    self.kill_now = True
-
+DATA_FOLDER_PATH = f'{PROGRAM_PATH}/../data'
+TOP_OUTPUT_FILE = f'{DATA_FOLDER_PATH}/top_output.txt'
+NETWORK_OUTPUT_FILE = f'{DATA_FOLDER_PATH}/network_output.txt'
 
 #=============================
 #       Main code
 #=============================
+
 # Cheking if this program is running under supdo provileges.
 if(os.getuid() != 0):
   print("Please run this script with sudo privileges.")
   exit(1)
 
 # Checking if the monitorinf folder exists.
-if(not os.path.isdir(f'{PROGRAM_PATH}/monitoring')):
+if(not os.path.isdir(DATA_FOLDER_PATH)):
   # Creating monitoring folder
-  subprocess.call(['mkdir', f'{PROGRAM_PATH}/monitoring'])
+  subprocess.call(['mkdir', DATA_FOLDER_PATH])
 
 # Defining output-file from top execution
-top_output = open(f'{PROGRAM_PATH}/monitoring/top_output.txt', "w+")
+top_output = open(TOP_OUTPUT_FILE, "w+")
 
 # Calling 'top' and 'iptraf-ng' processes.
 top = subprocess.Popen(["top","-u", "libvirt-qemu", "-d", "1", "-b"], stdout = top_output)
-network = subprocess.Popen(["iptraf", "-u", "-i", "all", "-B", "-L", f'{PROGRAM_PATH}/monitoring/network_output.txt'])
+network = subprocess.Popen(["iptraf", "-u", "-i", "all", "-B", "-L", NETWORK_OUTPUT_FILE])
 
 
 print(f'Monitoring environment with top (PID=[{top.pid}]) and iptraf (PID=[{network.pid}])...')

@@ -4,27 +4,20 @@ import os
 import sys
 import signal
 import time
+import setproctitle
 
 # for the purpose of run this script, after that this SHOULD BE MODIFIED.
-sys.path.append(f'./workloads/NAS')
+sys.path.append(f'../libs')
 import helper
 from helper import RemoteCommand
 from helper import FileType
+
+from sig_helper import GracefulKiller
 
 #=============================
 #   Some General Definitions
 #=============================
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
-
-# Handling the SIGTERM signal.
-class GracefulKiller:
-  kill_now = False
-  def __init__(self):
-    signal.signal(signal.SIGINT, self.exit_gracefully)
-    signal.signal(signal.SIGTERM, self.exit_gracefully)
-
-  def exit_gracefully(self,signum, frame):
-    self.kill_now = True
 
 # Initiates the monitoring processes for all 'clients' machines.
 def runAllMonitoring(clients, user, password):
@@ -36,10 +29,7 @@ def runAllMonitoring(clients, user, password):
 
   print(f'Calling \'start_monitoring.py\' for all clients ({clients.hosts})... ', flush=True)
 
-  clients.run_command('source ~/tg_scripts/venv/bin/activate && echo '+ password +' | sudo -S ~/tg_scripts/scripts/start_monitoring.py')
-  print('Running Monitoring Processes!', flush=True)
-
-
+  clients.run_command('source ~/tg_scripts/venv/bin/activate && echo '+ password +' | sudo -S /home/dac17/tg_scripts/scripts/monitoring_scripts/start_monitoring.py')
 # Kill the 'start_monitoring.py' processes for all 'clients' machines.
 def killMonitoringProcesses(clients, user, password):
   print(f'Killing processes in clients {clients.hosts}...', flush=True)
@@ -50,6 +40,8 @@ def killMonitoringProcesses(clients, user, password):
 #=============================
 #       Main code
 #=============================
+setproctitle.setthreadtitle('start_all_monitoring.py')
+
 user, password = helper.recoverCredentials()
 hosts = helper.recoverHosts(f"{PROGRAM_PATH}/host_list", FileType.TEXT)
 

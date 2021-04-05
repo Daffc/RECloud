@@ -69,9 +69,6 @@ clients = helper.defineConnection(user, password, hosts)
 # Creating Temporary folder.
 helper.createFolder(f'{PROGRAM_PATH}/keys')
 
-# Generating RSA keys.
-helper.createSSHKeys(f'{PROGRAM_PATH}/keys/.ssh')
-
 # Sending keys and authorized_keys to the clients
 helper.sendFiles(clients, f'{PROGRAM_PATH}/keys/.ssh/', "./.ssh")
 
