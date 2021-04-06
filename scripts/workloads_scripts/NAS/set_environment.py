@@ -22,6 +22,10 @@ import helper
 from helper import RemoteCommand
 from helper import FileType
 
+#=============================
+#   Local Functions
+#=============================
+
 # Installing NPB dependencies for each VM in 'clients'
 def installDependences(clients, password):
   
