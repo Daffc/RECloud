@@ -2,20 +2,35 @@
 
 import json
 import os
-import helper
 import shutil
-from helper import FileType
+import sys
+import setproctitle
 
 #=============================
 #   Some General Definitions
 #=============================
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
+setproctitle.setthreadtitle(os.path.basename(__file__))
 
+#=============================
+#   Including Project Libs
+#=============================
+
+# for the purpose of run this script, after that this SHOULD BE MODIFIED.
+sys.path.append(f'{PROGRAM_PATH}/../../libs')
+
+import helper
+from helper import FileType
+
+
+#=============================
+#   Local Functions
+#=============================
 
 def outputVMList(clients, origin, destination):
   
   # Receiving environment files from 'clients'
-  helper.receiveFiles(clients, f'{PROGRAM_PATH}/../../monitoring/environment.json', f'{PROGRAM_PATH}/environments/')
+  helper.receiveFiles(clients, f'{PROGRAM_PATH}/../../data/environment.json', f'{PROGRAM_PATH}/environments/')
 
   print(f'Listing VM from {clients.hosts}...', flush=True)
   
