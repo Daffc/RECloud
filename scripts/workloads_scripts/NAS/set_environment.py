@@ -1,17 +1,26 @@
 #!/usr/bin/env python3.9
 
 import os
-import helper
-from helper import RemoteCommand
-from helper import FileType
-
-
+import sys
+import setproctitle
 #=============================
 #   Some General Definitions
 #=============================
 NPB_VERSION = 'NPB3.3.1'
-PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 
+PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
+setproctitle.setthreadtitle(os.path.basename(__file__))
+
+#=============================
+#   Including Project Libs
+#=============================
+
+# for the purpose of run this script, after that this SHOULD BE MODIFIED.
+sys.path.append(f'{PROGRAM_PATH}/../../libs')
+
+import helper
+from helper import RemoteCommand
+from helper import FileType
 
 # Installing NPB dependencies for each VM in 'clients'
 def installDependences(clients, password):
@@ -60,7 +69,7 @@ def installNPB(clients, password):
 #	Main code
 #=============================
 user, password = helper.recoverCredentials()
-hosts = helper.recoverHosts(PROGRAM_PATH +"/../../monitoring/environment.json", FileType.JSON)
+hosts = helper.recoverHosts(PROGRAM_PATH +"/../../data/environment.json", FileType.JSON)
 
 
 # Definind Connection with Virtual Machines
