@@ -1,11 +1,10 @@
 #!/usr/bin/python3.9
+# DOES NOT CHANGE this shebang, in order to keep the process name the same as this file script ("start_monitoring").
 
 import os
-import signal
+import sys
 import time
 import subprocess
-
-from sig_helper import GracefulKiller
 
 #=============================
 #   Some General Definitions
@@ -14,6 +13,14 @@ PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 DATA_FOLDER_PATH = f'{PROGRAM_PATH}/../data'
 TOP_OUTPUT_FILE = f'{DATA_FOLDER_PATH}/top_output.txt'
 NETWORK_OUTPUT_FILE = f'{DATA_FOLDER_PATH}/network_output.txt'
+
+#=============================
+#   Including Project Libs
+#=============================
+# for the purpose of run this script, after that this SHOULD BE MODIFIED.
+sys.path.append(f'{PROGRAM_PATH}/../libs')
+
+from sig_helper import GracefulKiller
 
 #=============================
 #       Main code
