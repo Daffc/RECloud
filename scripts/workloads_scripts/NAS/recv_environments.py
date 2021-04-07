@@ -21,14 +21,18 @@ sys.path.append(f'{PROGRAM_PATH}/../../libs')
 
 import helper
 from helper import FileType
-
+from helper import RemoteCommand
 
 #=============================
 #   Local Functions
 #=============================
 
 def outputVMList(clients, origin, destination):
-  
+ 
+  print(f'Creating \'environment.json\' for {clients.hosts}... ', flush=True)
+  RemoteCommand(clients, f'source ~/tg_scripts/venv/bin/activate && echo {password} | sudo -S {PROGRAM_PATH}/../../environment_scripts/environment.py', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
+ 
   # Receiving environment files from 'clients'
   helper.receiveFiles(clients, f'{PROGRAM_PATH}/../../data/environment.json', f'{PROGRAM_PATH}/environments/')
 
