@@ -38,8 +38,8 @@ def runAllMonitoring(clients, user, password):
 
   print(f'Calling \'start_monitoring.py\' for all clients ({clients.hosts})... ', flush=True)
 
-  clients.run_command('source ~/tg_scripts/venv/bin/activate && echo '+ password +' | sudo -S ~/tg_scripts/scripts/monitoring_scripts/start_monitoring.py')
-
+  #clients.run_command('source ~/tg_scripts/venv/bin/activate && echo '+ password +' | sudo -S ~/tg_scripts/scripts/monitoring_scripts/start_monitoring.py')
+  clients.run_command('echo '+ password +' | sudo -S -- sh -c ". ~/tg_scripts/venv/bin/activate && ~/tg_scripts/scripts/monitoring_scripts/start_monitoring.py" ')
 
 # Kill the 'start_monitoring.py' processes for all 'clients' machines.
 def killMonitoringProcesses(clients, user, password):
