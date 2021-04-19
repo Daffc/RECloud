@@ -14,7 +14,9 @@ PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 
 DATA_FOLDER_PATH = f'{PROGRAM_PATH}/../data'
 TOP_OUTPUT_FILE = f'{DATA_FOLDER_PATH}/top_output.txt'
+MEMORY_OUTPUT_FILE = f'{DATA_FOLDER_PATH}/memory_output.txt'
 NETWORK_OUTPUT_FILE = f'{DATA_FOLDER_PATH}/network_output.txt'
+VENV_PATH =  f'{PROGRAM_PATH}/../../venv/bin/python3.9'
 
 #=============================
 #   Including Project Libs
@@ -41,10 +43,13 @@ if(not os.path.isdir(DATA_FOLDER_PATH)):
 # Defining output-file from top execution
 top_output = open(TOP_OUTPUT_FILE, "w+")
 
-# Calling 'top' and 'iptraf-ng' processes.
+# Defining output-file from top execution
+mem_output = open(MEMORY_OUTPUT_FILE, "w+")
+
+Calling 'top' and 'iptraf-ng' processes.
 top = subprocess.Popen(["top","-u", "libvirt-qemu", "-d", "1", "-b"], stdout = top_output)
 network = subprocess.Popen(["iptraf", "-u", "-i", "all", "-B", "-L", NETWORK_OUTPUT_FILE])
-
+mem = subprocess.Popen([VENV_PATH, f"{PROGRAM_PATH}/mem_monitor.py"], stdout = mem_output)
 
 print(f'Monitoring environment with top (PID=[{top.pid}]) and iptraf (PID=[{network.pid}])...')
 killer = GracefulKiller()
@@ -54,6 +59,6 @@ print(f'Killing monitoring processes top (PID=[{top.pid}]) and iptraf (PID=[{net
 
 # killing the 'top' and 'iptraf-ng' processes.
 #(NOTE) for some unknow reason, it 'iptraf' calls two pocesses when called by python, so its in needed to kill 'network.pid' as wall as 'network.pid + 1'
-subprocess.call(["kill",  "-USR2", str(top.pid), str(network.pid), str(network.pid + 1)])
+subprocess.call(["kill",  "-USR2", str(top.pid), str(network.pid), str(network.pid + 1), str(mem.pid)])
 
 print(f'Exiting monitoring processes halder.')
