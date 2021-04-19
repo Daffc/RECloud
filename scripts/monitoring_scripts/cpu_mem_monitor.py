@@ -1,6 +1,4 @@
 #!/usr/bin/env python3.9
-# Example-35.py
-from __future__ import print_function
 import sys
 import os
 import socket
@@ -16,7 +14,10 @@ from datetime import datetime
 #   Some General Definitions
 #=============================
 setproctitle.setthreadtitle(os.path.basename(__file__))
+
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
+INTERVAL_SEC = 0.5
+TIME_MASK = "%d/%m/%Y %H:%M:%S.%f"
 
 #=============================
 #   Including Project Libs
@@ -29,23 +30,19 @@ from sig_helper import GracefulKiller
 
 def startAllBalloonPeriods(doms):
   for dom in doms:
-    print(f'Definning Balloon Period for {dom.name()}') 
     try:
       subprocess.check_call(['virsh', 'dommemstat', '--domain', dom.name(), '--period', '1']) 
     except subprocess.CalledProcessError:
       print(f'Error while definning Balloon Period for {dom.name()}. Closing process.')
       exit(1)
-    print('OK!')
 
 def stopAllBalloonPeriods(doms):
   for dom in doms:
-    print(f'Unfinning Balloon Period for {dom.name()}')
     try:
       subprocess.check_call(['virsh', 'dommemstat', '--domain', dom.name(), '--period', '0'])
     except subprocess.CalledProcessError:
       print(f'Error while definning Balloon Period for {dom.name()}. Closing process.')
       exit(1)
-    print('OK!')
 
 def getMemConsumption(dom):
   stats  = dom.memoryStats()
@@ -57,13 +54,37 @@ def getMemConsumption(dom):
    
   return curMem, curMemPercent
 
+def getCPUConsumption(dom):
+  timestamp = time.time()
 
+  state, maxmem, mem, cpus, cput = dom.info()
 
+  percCPU = ((cput - dom.prevCput) / ((timestamp - dom.pTimeStamp) * 10_000_000))
+
+  dom.prevCput = cput
+  dom.pTimeStamp = timestamp
+  
+  return percCPU
+
+def setOutput(args):
+  if len(args):
+    try:
+      file = open(str(args[0]), 'a')
+      try:
+        sys.stdout = file
+      except Exception as e:
+        print(f"Coundn't redirect output: {e}.")
+        exit(1)
+    except Exception as e:
+      print(f"Couldn't open file '{args[0]}': {e}.")
+      exit(1)
 #=============================
 #       Main code
 #=============================
 
 if __name__ == '__main__':
+  
+  setOutput(sys.argv[1:])  
   domName = socket.gethostname()
 
   conn = libvirt.open('qemu:///system')
@@ -79,22 +100,33 @@ if __name__ == '__main__':
 
   doms = []
   for id in domsID:
-    doms.append(conn.lookupByID(id))
+    dom = conn.lookupByID(id)
+    dom.pTimeStamp = time.time()
+    dom.prevCput = 0
+    prevCput = 0
+    doms.append(dom)
 
   startAllBalloonPeriods(doms)
 
+  
   killer = GracefulKiller()
 
-  print(f'********* Start Memory Menitoring at {datetime.now().strftime("%d/%m/%Y %H:%M:%S")} **********')
+  # Setting initial Values for CPU registers. 
+  for dom in doms:
+    getCPUConsumption(dom)
+  time.sleep(INTERVAL_SEC)
+
+  print(f'********* Start Monitoring at {datetime.now().strftime(TIME_MASK)} **********', flush=True)
   while not killer.kill_now:
   
-    print(datetime.now().strftime("%d/%m/%Y %H:%M:%S")) 
+    print(datetime.now().strftime(TIME_MASK)) 
     for dom in doms:
       curMem, curMemPercent = getMemConsumption(dom)
-      print(f'\t{dom.name()}\t{curMem}\t{curMemPercent:.2f}')
-    time.sleep(1)
+      percCPU = getCPUConsumption(dom)
+      print(f'\t{dom.name()}\tcurMem: {curMem}\tcurMemPercent:{curMemPercent:.2f}\tpercCPU: {percCPU}', flush=True)
+    time.sleep(INTERVAL_SEC)
 
-  print(f'********* Stopping Memory Menitoring at {datetime.now().strftime("%d/%m/%Y %H:%M:%S")} **********')
+  print(f'********* Stopping Monitoring at {datetime.now().strftime(TIME_MASK)} **********\n', flush=True)
 
   stopAllBalloonPeriods(doms)
   conn.close()
