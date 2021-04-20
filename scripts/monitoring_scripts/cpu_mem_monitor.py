@@ -2,7 +2,6 @@
 import sys
 import os
 import socket
-import libvirt
 import time
 import signal
 import subprocess
@@ -26,8 +25,11 @@ TIME_MASK = "%d/%m/%Y %H:%M:%S.%f"
 sys.path.append(f'{PROGRAM_PATH}/../libs')
 
 from sig_helper import GracefulKiller
+import libvirt_helper as lh
 
-
+#=============================
+#   Local Functions
+#=============================
 def startAllBalloonPeriods(doms):
   for dom in doms:
     try:
@@ -66,6 +68,7 @@ def getCPUConsumption(dom):
   
   return percCPU
 
+# Redefine default output according to args[0] paramather.
 def setOutput(args):
   if len(args):
     try:
@@ -78,6 +81,7 @@ def setOutput(args):
     except Exception as e:
       print(f"Couldn't open file '{args[0]}': {e}.")
       exit(1)
+
 #=============================
 #       Main code
 #=============================
@@ -87,28 +91,14 @@ if __name__ == '__main__':
   setOutput(sys.argv[1:])  
   domName = socket.gethostname()
 
-  conn = libvirt.open('qemu:///system')
-  if conn == None:
-    print('Failed to open connection to qemu:///system', file=sys.stderr)
-    exit(1)
-
-  domsID = conn.listDomainsID()
-
-  if not domsID:
-    print('Failed to find virtual domains in '+domName, file=sys.stderr)
-    exit(1)
-
-  doms = []
-  for id in domsID:
-    dom = conn.lookupByID(id)
+  conn = lh.libvirtConnect()
+  doms = lh.recoverDomains(conn) 
+  
+  for dom in doms:
     dom.pTimeStamp = time.time()
     dom.prevCput = 0
-    prevCput = 0
-    doms.append(dom)
 
   startAllBalloonPeriods(doms)
-
-  
   killer = GracefulKiller()
 
   # Setting initial Values for CPU registers. 
