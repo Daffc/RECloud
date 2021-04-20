@@ -30,7 +30,7 @@ from helper import RemoteCommand
 def outputVMList(clients, origin, destination):
  
   print(f'Creating \'environment.json\' for {clients.hosts}... ', flush=True)
-  RemoteCommand(clients, f'source ~/tg_scripts/venv/bin/activate && echo {password} | sudo -S {PROGRAM_PATH}/../../environment_scripts/environment.py', 10, False).remoteCommandHandler()
+  RemoteCommand(clients, f'echo {password} | sudo -S -- sh -c ". ~/tg_scripts/venv/bin/activate && ~/tg_scripts/scripts/environment_scripts/environment.py"', 10, False).remoteCommandHandler()
   print('OK!', flush=True)
  
   # Receiving environment files from 'clients'
