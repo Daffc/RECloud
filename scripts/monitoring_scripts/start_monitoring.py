@@ -53,4 +53,5 @@ if __name__ == "__main__":
   #(NOTE) for some unknow reason, it 'iptraf' calls two pocesses when called by python, so its in needed to kill 'network.pid' as wall as 'network.pid + 1'
   subprocess.call(["kill",  "-USR2", str(network.pid), str(network.pid + 1)])
   network.terminate()
+  cpu_mem.terminate()
   print(f'Exiting monitoring processes halder.')
