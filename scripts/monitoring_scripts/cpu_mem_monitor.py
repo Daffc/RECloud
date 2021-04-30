@@ -92,7 +92,7 @@ if __name__ == '__main__':
   domName = socket.gethostname()
 
   conn = lh.libvirtConnect()
-  doms = lh.recoverDomains(conn) 
+  doms = lh.recoverActiveDomains(conn) 
   
   for dom in doms:
     dom.pTimeStamp = time.time()
