@@ -113,7 +113,7 @@ if __name__ == '__main__':
     for dom in doms:
       curMem, curMemPercent = getMemConsumption(dom)
       percCPU = getCPUConsumption(dom)
-      print(f'\t{dom.name()}\tcurMem: {curMem}\tcurMemPercent:{curMemPercent:.2f}\tpercCPU: {percCPU}', flush=True)
+      print(f'\t{dom.name()}\tcurMem: {curMem}\tcurMemPercent:{curMemPercent:.2f}\tpercCPU: {round(percCPU, 2)}', flush=True)
     time.sleep(INTERVAL_SEC)
 
   print(f'********* Stopping Monitoring at {datetime.now().strftime(TIME_MASK)} **********\n', flush=True)
