@@ -3,16 +3,14 @@
 import json
 import os
 import sys
-import time
 import datetime 
+import argparse
 
 
 #=============================
 #   Some General Definitions
 #=============================
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
-SOURCE_PATH =  f'{PROGRAM_PATH}/../data/outputs'
-TRACES_PATH = f'{PROGRAM_PATH}/../data/traces'
 TIME_MASK = "%a %b %d %H:%M:%S.%f %Y"
 
 EXPERIMENT_ID = datetime.datetime.now().strftime('%d-%m-%Y_%H:%M')
@@ -33,11 +31,11 @@ import helper
 #   Local Functions
 #=============================
 
-def agregatePaths(envs):
+def agregatePaths(envs, input_folder, output_folder):
   for host in envs['hosts']:
-    host['trace_folder'] = f'{TRACES_PATH}/{EXPERIMENT_ID}/{host["hostname"]}'
-    host['cpu_mem_source'] = f'{SOURCE_PATH}/{host["hostname"]}/cpu_mem_output.txt'
-    host['network_source'] = f'{SOURCE_PATH}/{host["hostname"]}/network_output.txt'
+    host['trace_folder'] = f'{output_folder}/traces/{EXPERIMENT_ID}/{host["hostname"]}'
+    host['cpu_mem_source'] = f'{input_folder}/{host["hostname"]}/cpu_mem_output.txt'
+    host['network_source'] = f'{input_folder}/{host["hostname"]}/network_output.txt'
     for vm in host['machines']:
       vm['trace_path'] = f'{host["trace_folder"]}/{vm["name"]}.trace'
 
@@ -54,6 +52,9 @@ def transformListToDatetime(list):
   str_datetime = ' '.join(list)
   return datetime.datetime.strptime(str_datetime, TIME_MASK)
 
+def outputPAJEVariable(time, vm_name, vat_name, var_value, file):
+  print(PAJE_CODES['PajeSetVariable'], time, vm_name, vat_name, var_value, file=file)
+
 def traceCPU_MEM(vm, f_input, output_path):
 
   line = f_input.readline()
@@ -63,65 +64,78 @@ def traceCPU_MEM(vm, f_input, output_path):
     line = f_input.readline()
     line = line.rstrip()
   
-  if line:
-    previous_time = transformListToDatetime(line.split()[4:9])
-    total_time = datetime.timedelta()
-    
-    line = f_input.readline()
-    while (line):
-      if(line[0] == '*'):
-        break
-      if(line[0] != '\t'):
-        curr_time = transformListToDatetime(line.split()[0:5])
-        total_time += (curr_time - previous_time)
-        # LOOP THROUGH TIME INTERVAL LOOKING FOR VM CPU CONSUMPTION.
-        print(total_time.total_seconds())
-        previous_time = curr_time
-
-      line = f_input.readline()
-      
-
-
-  else:
+  if (not line):
     sys.exit(f"File '{output_path}' is empt.")
 
+  previous_time = transformListToDatetime(line.split()[4:9])
+  total_time = datetime.timedelta()
+  
+  output_file = open(vm['trace_path'], 'w')
+  line = f_input.readline()
+  
+  while (line):
+    split_line = line.split()
+    if(line[0] == '*'):
+      break
+    elif(line[0] != '\t'):
+      curr_time = transformListToDatetime(split_line[0:5])
+      total_time += (curr_time - previous_time)
+      previous_time = curr_time
+    elif(split_line[0] == vm["name"]):
+      vm_cpu = split_line[6]
+      vm_mem = split_line[2]
 
-  # while line:
+      outputPAJEVariable(total_time.total_seconds(), vm["name"], 'CPU', vm_cpu, output_file)
+      outputPAJEVariable(total_time.total_seconds(), vm["name"], 'MEM', vm_mem, output_file)
 
-  # f_imput.readline()
+    line = f_input.readline()
+  
+  output_file.close()
 
-  # for line in f_input:
-  # 	line = line.rstrip()
-  # 	if line:
-  # 		print(f'-{line}-')
-  # 		for word in line.split('\t'):
-  # 			print(word)
-      # print(line.split()[1])
         
       
 def traceFiles(host):
     
   c_m_in = open(host['cpu_mem_source'], 'r')
   
+  # PARALELIZATION POINT.
   for vm in host['machines']:
     traceCPU_MEM(vm, c_m_in, vm['trace_path'])
   
   c_m_in.close()
+
+def parsingArguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input_folder", help="Path to source folder.")
+    parser.add_argument("output_folder", help="Path to output folder.")
+    args = parser.parse_args()
+
+    return args.input_folder, args.output_folder
+
+def checkFoldersExistence(path_in, path_out):
+  if(not os.path.isdir(path_in)):
+    sys.exit(f"Folder '{path_in}' does not exists.")
+  if(not os.path.isdir(path_out)):
+    sys.exit(f"Folder '{path_out}' does not exists.")
 
 #=============================
 #       Main code
 #=============================
 
 if __name__ == '__main__':
-  helper.createFolder(TRACES_PATH)
-  helper.createFolder(f'{TRACES_PATH}/{EXPERIMENT_ID}')
     
-  envs = recoverEnvironments(f'{SOURCE_PATH}/environments.json') 
+  input_folder, output_folder = parsingArguments()
+  checkFoldersExistence(input_folder, output_folder)
 
-  agregatePaths(envs)
+  helper.createFolder(f'{output_folder}traces')
+  helper.createFolder(f'{output_folder}traces/{EXPERIMENT_ID}')
 
+  envs = recoverEnvironments(f'{input_folder}/environments.json') 
+
+  agregatePaths(envs, input_folder, output_folder)
+
+  # PARALELIZATION POINT.
   for host in envs['hosts']:
     helper.createFolder(host['trace_folder'])
-    traceFiles(host)  
+    traceFiles(host)
   
-  # print(json.dumps(envs, indent=2))
