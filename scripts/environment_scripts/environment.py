@@ -68,6 +68,7 @@ def recoverVMData():
     #Recovering MAC address of virtual machine 'dom.name()'
     p1 = subprocess.Popen(['virsh domiflist ' + dom.name()], stdout = subprocess.PIPE, shell=True)
     output = p1.communicate()[0].decode('utf-8')
+    vnic = output.splitlines()[2].split()[0]
     mac_address = output.splitlines()[2].split()[4] 
     
     #Iterating over machines in subnet, retriving 'ip' by the 'mac_adress' of the current virtual machine.
@@ -84,6 +85,7 @@ def recoverVMData():
       'id': dom.ID(),
       'UUID': dom.UUIDString(),
       'mac': mac_address,
+      'vnic': vnic,
       'ip': ip,
       'max_memory': maxmem,
       'vcpus': cpus
