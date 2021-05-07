@@ -3,7 +3,8 @@
 import json
 import os
 import sys
-import datetime 
+from datetime import datetime
+from datetime import timedelta
 import argparse
 
 
@@ -11,15 +12,19 @@ import argparse
 #   Some General Definitions
 #=============================
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
-TIME_MASK = "%a %b %d %H:%M:%S.%f %Y"
-CPU_MEM_START = " ********* Start Monitoring **********"
-CPU_MEM_END = " ********* Stopping Monitoring **********"
+CPU_MEM_TIME_MASK = "%a %b %d %H:%M:%S.%f %Y"
+NETWORK_TIME_MASK = "%a %b %d %H:%M:%S %Y"
+CPU_MEM_START = " ********* Start Monitoring **********\n"
+CPU_MEM_END = " ********* Stopping Monitoring **********\n"
+NETWORK_START = " ******** IP traffic monitor started ********\n"
+NETWORK_END = " ******** IP traffic monitor stopped ********\n"
 
-EXPERIMENT_ID = datetime.datetime.now().strftime('%d-%m-%Y_%H:%M')
+EXPERIMENT_ID = datetime.now().strftime('%d-%m-%Y_%H:%M')
 
 PAJE_CODES = {
   'PajeSetVariable' : 8,
-  'PajeNewEvent' : 16,
+  'PajeStartLink' : 14,
+  'PajeEndLink': 15
 }
 
 #=============================
@@ -38,7 +43,7 @@ def agregatePaths(envs, input_folder, output_folder):
     host['trace_folder'] = f'{output_folder}/traces/{EXPERIMENT_ID}/{host["hostname"]}'
     host['cpu_mem_source'] = f'{input_folder}/{host["hostname"]}/cpu_mem_output.txt'
     host['network_source'] = f'{input_folder}/{host["hostname"]}/network_output.txt'
-    for vm in host['machines']:
+    for vm in host['virtualMachines']:
       vm['trace_path'] = f'{host["trace_folder"]}/{vm["name"]}.trace'
 
 def recoverEnvironments(path):
@@ -50,62 +55,97 @@ def recoverEnvironments(path):
     
   return envs
 
-def outputPAJEVariable(time, vm_name, vat_name, var_value, file):
-  print(PAJE_CODES['PajeSetVariable'], time, vm_name, vat_name, var_value, file=file)
+def outputPAJEVariable(time, vm_name, var_name, var_value, file):
+  print(PAJE_CODES['PajeSetVariable'], time, vm_name, var_name, var_value, file=file)
 
 def tracingCPUMEM(vm, f_input, output_path):
-
+  
   line = f_input.readline()
-  line = line.rstrip()
-
-  while (not line):
-    line = f_input.readline()
-    line = line.rstrip()
-
   line_cols = line.split(';')
 
-  if ((not line) or (line_cols[1] != CPU_MEM_START)):
+  if((not line) or (line_cols[1] != CPU_MEM_START)):
     sys.exit(f"Wrong file format:'{f_input.name}'.")
 
-  previous_time = datetime.datetime.strptime(line_cols[0], TIME_MASK)
-  total_time = datetime.timedelta()
+  previous_time = datetime.strptime(line_cols[0], CPU_MEM_TIME_MASK)
+  total_time = timedelta()
   
   output_file = open(vm['trace_path'], 'w')
   line = f_input.readline()
   
-  while (line):
+  while(line):
     line_cols = line.split(';')
+
     if(line_cols[1] == CPU_MEM_END):
       break
-    else:
-      curr_time = datetime.datetime.strptime(line_cols[0], TIME_MASK)
-      total_time += (curr_time - previous_time)
-      previous_time = curr_time
 
-      for vm_entry in line_cols[1:]:
-        vm_cols = vm_entry.split()
+    curr_time = datetime.strptime(line_cols[0], CPU_MEM_TIME_MASK)
+    total_time += (curr_time - previous_time)
+    previous_time = curr_time
 
-        if(vm_cols[0] == vm["name"]):
-          outputPAJEVariable(total_time.total_seconds(), vm["name"], 'MEM', vm_cols[2], output_file)
-          outputPAJEVariable(total_time.total_seconds(), vm["name"], 'CPU', vm_cols[6], output_file)
+    for vm_entry in line_cols[1:]:
+      vm_cols = vm_entry.split()
+
+      if(vm_cols[0] == vm["name"]):
+        outputPAJEVariable(total_time.total_seconds(), vm["name"], 'MEM', vm_cols[2], output_file)
+        outputPAJEVariable(total_time.total_seconds(), vm["name"], 'CPU', vm_cols[6], output_file)
 
     line = f_input.readline()
   
   output_file.close()
 
-def tracingNetwork(vm, f_input, output_path):
-  print()
+def tracingNetwork(vm, f_input, output_path, vm_list):
+
+  line = f_input.readline()
+  line_cols = line.split(';')
+
+  print(line_cols)
+
+  if((not line) or (line_cols[1] != NETWORK_START)):
+    sys.exit(f"Wrong file format:'{f_input.name}'.")
+
+  previous_time = datetime.strptime(line_cols[0], NETWORK_TIME_MASK)
+  total_time = timedelta()
+
+  # output_file = open(vm['trace_path'], 'w')
+  
+  line = f_input.readline()  
+  while(line):
+    line_cols = line.split(';')
+    if(line_cols[1] == NETWORK_END):
+      break
+
+    curr_time = datetime.strptime(line_cols[0], NETWORK_TIME_MASK)    
+    nic = line_cols[2]
+    ori_dest = line_cols[4]
+
+    if(vm["vnic"] == nic.strip()):
+      total_time += (curr_time - previous_time)
+      previous_time = curr_time
+
+      ori_dest = ori_dest.split()
+      sender = ori_dest[1].split(':')[0]
+      receiver = ori_dest[3].split(':')[0]
+
+      if(sender == vm["ip"]):
+        print(ori_dest, "sender")
+      else:
+        print(ori_dest, "receiver")
 
 
-def generateTraceFiles(host):
+    line = f_input.readline()
+
+  print(line_cols)
+
+
+def generateTraceFiles(host, vm_list):
     
   c_m_in = open(host['cpu_mem_source'], 'r')
   network_in = open(host['network_source'], 'r')
   
   # PARALELIZATION POINT.
-  for vm in host['machines']:
-    # tracingNetwork(vm, network_in, vm['trace_path'])
-    tracingCPUMEM(vm, c_m_in, vm['trace_path'])
+  for vm in host['virtualMachines']:
+    tracingNetwork(vm, network_in, vm['trace_path'], vm_list)
+    # tracingCPUMEM(vm, c_m_in, vm['trace_path'])
   
   network_in.close()
   c_m_in.close()
@@ -124,6 +164,13 @@ def checkFoldersExistence(path_in, path_out):
   if(not os.path.isdir(path_out)):
     sys.exit(f"Folder '{path_out}' does not exists.")
 
+def generateVmList(envs):
+  vm_list = []
+
+  for host in envs['hosts']:
+    vm_list.extend(host["virtualMachines"])
+
+  return vm_list
 #=============================
 #       Main code
 #=============================
@@ -141,9 +188,11 @@ if __name__ == '__main__':
   envs = recoverEnvironments(f'{input_folder}/environments.json') 
 
   agregatePaths(envs, input_folder, output_folder)
+  
+  vm_list = generateVmList(envs)
 
   # PARALELIZATION POINT.
   for host in envs['hosts']:
     helper.createFolder(host['trace_folder'])
-    generateTraceFiles(host)
+    generateTraceFiles(host, vm_list)
   
