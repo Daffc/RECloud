@@ -44,7 +44,7 @@ def outputVMList(clients, origin, destination):
       print(f'\t from \'{ef}\':')
       with open(f'{origin}/{ef}', "r") as environment_file:
         env = json.load(environment_file)
-        for vm in env["machines"]:
+        for vm in env["virtualMachines"]:
           print(f'\t\t \'{vm["ip"]}\'')
           output_file.write(f'{vm["ip"]}\n')
 

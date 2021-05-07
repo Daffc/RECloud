@@ -47,9 +47,9 @@ def recoverHostData():
 
   return data
 
-def recoverVMData():
+def recoverVMData(data):
   
-  machines = []
+  virtualMachines = []
 
   conn = lh.libvirtConnect()
   doms = lh.recoverActiveDomains(conn)
@@ -58,7 +58,6 @@ def recoverVMData():
   print(f'Recovering Network information from running Virtual Machines.', flush=True)
   p1 = subprocess.Popen(['nmap', '-sn', data['ip'][:data['ip'].rfind(".")] +'.0/24'], stdout = subprocess.PIPE)
   subnet = p1.communicate()[0].decode('utf-8')
-  data['machines'] = []
   print('OK!', flush=True)
 
   #iterating over each VM process entry, recovering its informaion
@@ -80,7 +79,7 @@ def recoverVMData():
 
     _, maxmem, _, cpus, _ = dom.info()
     # Storing definind new VM entry in 'data'.
-    machines.append({
+    virtualMachines.append({
       'name': dom.name(),
       'id': dom.ID(),
       'UUID': dom.UUIDString(),
@@ -94,7 +93,7 @@ def recoverVMData():
   
   conn.close()
 
-  return machines
+  return virtualMachines
 
 def storeDataJson(data):
   # Storing all the 'data' information in 'envirionment.json'
@@ -120,7 +119,7 @@ if __name__ == '__main__':
   # Initiating json structure
   data = recoverHostData()
 
-  data["machines"] = recoverVMData()
+  data["virtualMachines"] = recoverVMData(data)
   
   storeDataJson(data)
   

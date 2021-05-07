@@ -72,7 +72,7 @@ def recoverHosts(path, structure):
     print(f'Recovering json informtion (\'{path}\')... ', flush=True)
     with open(path, "r") as environment_file:
       env = json.load(environment_file)  
-      for vm in env["machines"]:
+      for vm in env["virtualMachines"]:
         hosts.append(vm["ip"])
   
   else:
