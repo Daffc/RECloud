@@ -58,6 +58,12 @@ def recoverEnvironments(path):
 def outputPAJEVariable(time, vm_name, var_name, var_value, file):
   print(PAJE_CODES['PajeSetVariable'], time, vm_name, var_name, var_value, file=file)
 
+def outputPAJEStartLink(time, vm_name, package_size, link_key, file):
+  print(PAJE_CODES["PajeStartLink"], time, "LINK", "root", vm_name, package_size, link_key, file=file)
+  
+def outputPAJEEndLink(time, vm_name, package_size, link_key, file):
+  print(PAJE_CODES["PajeEndLink"], time, "LINK", "root", vm_name, package_size, link_key, file=file)
+
 def tracingCPUMEM(vm, f_input, output_path):
   
   line = f_input.readline()
@@ -93,30 +99,37 @@ def tracingCPUMEM(vm, f_input, output_path):
   
   output_file.close()
 
+def searchVM(vm_list, key, value):
+  vm = []
+  for vm_entry in vm_list:  
+    if(vm_entry[key] == value):
+      vm = vm_entry
+      break
+  return vm
+
 def tracingNetwork(vm, f_input, output_path, vm_list):
 
   line = f_input.readline()
   line_cols = line.split(';')
-
-  print(line_cols)
-
   if((not line) or (line_cols[1] != NETWORK_START)):
     sys.exit(f"Wrong file format:'{f_input.name}'.")
 
   previous_time = datetime.strptime(line_cols[0], NETWORK_TIME_MASK)
   total_time = timedelta()
 
-  # output_file = open(vm['trace_path'], 'w')
+  links_dict = {}
+  output_file = open(vm['trace_path'], 'w')
   
-  line = f_input.readline()  
-  while(line):
+  for line in f_input.readlines():
     line_cols = line.split(';')
+
     if(line_cols[1] == NETWORK_END):
       break
 
-    curr_time = datetime.strptime(line_cols[0], NETWORK_TIME_MASK)    
-    nic = line_cols[2]
-    ori_dest = line_cols[4]
+    curr_time, _, nic, size, ori_dest, *_ = line_cols
+    
+    curr_time = datetime.strptime(curr_time, NETWORK_TIME_MASK) 
+    size = size.split()[0]
 
     if(vm["vnic"] == nic.strip()):
       total_time += (curr_time - previous_time)
@@ -126,16 +139,29 @@ def tracingNetwork(vm, f_input, output_path, vm_list):
       sender = ori_dest[1].split(':')[0]
       receiver = ori_dest[3].split(':')[0]
 
+      link = ''
       if(sender == vm["ip"]):
-        print(ori_dest, "sender")
+        vm_counterpar = searchVM(vm_list, "ip", receiver)
+        if(vm_counterpar):
+          link = f'{vm["name"]}:{vm_counterpar["name"]}'
+        else:
+          link = f'{vm["name"]}:Unknown'
+        order = links_dict.setdefault(link, 0)
+        outputPAJEStartLink(total_time.total_seconds(),vm["name"], size, f'{link}|{order}', output_file)
+        links_dict[link] += 1
+
+      elif(receiver == vm["ip"]):
+        vm_counterpar = searchVM(vm_list, "ip", sender)     
+        if(vm_counterpar):
+          link = f'{vm_counterpar["name"]}:{vm["name"]}'
+        else:
+          link = f'Unknown:{vm["name"]}'
+        order = links_dict.setdefault(link, 0)
+        outputPAJEEndLink(total_time.total_seconds(),vm["name"], size, f'{link}|{order}', output_file)
+        links_dict[link] += 1
+
       else:
-        print(ori_dest, "receiver")
-
-
-    line = f_input.readline()
-
-  print(line_cols)
-
+        sys.exit(f"Uncomum Network Comunication: '{line}' for '{vm['name']}'.")
 
 def generateTraceFiles(host, vm_list):
     
