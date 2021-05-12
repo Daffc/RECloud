@@ -115,9 +115,9 @@ def tracingCPUMEM(vm, f_input, f_output):
       break
 
     curr_time = datetime.strptime(line_cols[0], CPU_MEM_TIME_MASK)
-    previous_time = curr_time
     total_time += (curr_time - previous_time)
     tt_seconds = total_time.total_seconds()
+    previous_time = curr_time
     
     # Loop through each vm entry in "line"
     for vm_entry in line_cols[1:]:
@@ -177,7 +177,7 @@ def tracingNetwork(vm, f_input, vm_list, f_output):
           link = f'{vm["name"]}:{UNKNOWN_HOST}'
           order = links_dict.setdefault(link, 0)
           outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
-          outputPAJEEndLink((tt_seconds + 0.1),vm["name"], size, f'{link}|{order}', f_output)
+          outputPAJEEndLink((tt_seconds + 0.1),UNKNOWN_HOST, size, f'{link}|{order}', f_output)
           links_dict[link] += 1
 
       # Check if vm is the receiver of the message.
@@ -193,7 +193,7 @@ def tracingNetwork(vm, f_input, vm_list, f_output):
         else:
           link = f'{UNKNOWN_HOST}:{vm["name"]}'
           order = links_dict.setdefault(link, 0)
-          outputPAJEStartLink((tt_seconds - 0.1),vm["name"], size, f'{link}|{order}', f_output)
+          outputPAJEStartLink((tt_seconds - 0.1),UNKNOWN_HOST, size, f'{link}|{order}', f_output)
           outputPAJEEndLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
           links_dict[link] += 1
       
