@@ -18,6 +18,7 @@ CPU_MEM_START = " ********* Start Monitoring **********\n"
 CPU_MEM_END = " ********* Stopping Monitoring **********\n"
 NETWORK_START = " ******** IP traffic monitor started ********\n"
 NETWORK_END = " ******** IP traffic monitor stopped ********\n"
+UNKNOWN_HOST = "Unknown"
 
 EXPERIMENT_ID = datetime.now().strftime('%d-%m-%Y_%H:%M')
 
@@ -38,6 +39,7 @@ import helper
 #   Local Functions
 #=============================
 
+# Inserting into "env" entries input and output data paths for each element.
 def agregatePaths(envs, input_folder, output_folder):
   for host in envs['hosts']:
     host['trace_folder'] = f'{output_folder}/traces/{EXPERIMENT_ID}/{host["hostname"]}'
@@ -46,59 +48,32 @@ def agregatePaths(envs, input_folder, output_folder):
     for vm in host['virtualMachines']:
       vm['trace_path'] = f'{host["trace_folder"]}/{vm["name"]}.trace'
 
+# Recovering environment data from json to dictionary.
 def recoverEnvironments(path):
   if(not os.path.isfile(path)):
     sys.exit(f'File {path} does not exist.')
-
   with open(path, 'r') as envs_file:
     envs = json.load(envs_file)
     
   return envs
 
-def outputPAJEVariable(time, vm_name, var_name, var_value, file):
-  print(PAJE_CODES['PajeSetVariable'], time, vm_name, var_name, var_value, file=file)
+# Checking if folder exists.
+def checkFoldersExistence(path_in, path_out):
+  if(not os.path.isdir(path_in)):
+    sys.exit(f"Folder '{path_in}' does not exists.")
+  if(not os.path.isdir(path_out)):
+    sys.exit(f"Folder '{path_out}' does not exists.")
 
-def outputPAJEStartLink(time, vm_name, package_size, link_key, file):
-  print(PAJE_CODES["PajeStartLink"], time, "LINK", "root", vm_name, package_size, link_key, file=file)
-  
-def outputPAJEEndLink(time, vm_name, package_size, link_key, file):
-  print(PAJE_CODES["PajeEndLink"], time, "LINK", "root", vm_name, package_size, link_key, file=file)
+# Recovering vm's from 'envs' into a list.
+def generateVmList(envs):
+  vm_list = []
 
-def tracingCPUMEM(vm, f_input, output_path):
-  
-  line = f_input.readline()
-  line_cols = line.split(';')
+  for host in envs['hosts']:
+    vm_list.extend(host["virtualMachines"])
 
-  if((not line) or (line_cols[1] != CPU_MEM_START)):
-    sys.exit(f"Wrong file format:'{f_input.name}'.")
+  return vm_list
 
-  previous_time = datetime.strptime(line_cols[0], CPU_MEM_TIME_MASK)
-  total_time = timedelta()
-  
-  output_file = open(vm['trace_path'], 'w')
-  line = f_input.readline()
-  
-  while(line):
-    line_cols = line.split(';')
-
-    if(line_cols[1] == CPU_MEM_END):
-      break
-
-    curr_time = datetime.strptime(line_cols[0], CPU_MEM_TIME_MASK)
-    total_time += (curr_time - previous_time)
-    previous_time = curr_time
-
-    for vm_entry in line_cols[1:]:
-      vm_cols = vm_entry.split()
-
-      if(vm_cols[0] == vm["name"]):
-        outputPAJEVariable(total_time.total_seconds(), vm["name"], 'MEM', vm_cols[2], output_file)
-        outputPAJEVariable(total_time.total_seconds(), vm["name"], 'CPU', vm_cols[6], output_file)
-
-    line = f_input.readline()
-  
-  output_file.close()
-
+# Recovering vm from 'vm list' if there is a 'key' 'value' match.
 def searchVM(vm_list, key, value):
   vm = []
   for vm_entry in vm_list:  
@@ -107,62 +82,126 @@ def searchVM(vm_list, key, value):
       break
   return vm
 
-def tracingNetwork(vm, f_input, output_path, vm_list):
+# Formatting and outputting 'PajeSetVariable' trace line.
+def outputPAJEVariable(time, vm_name, var_name, var_value, file):
+  print(PAJE_CODES['PajeSetVariable'], time, vm_name, var_name, var_value, file=file)
 
+# Formating and outputing 'PajeStartLink' trace line.
+def outputPAJEStartLink(time, vm_name, package_size, link_key, file):
+  print(PAJE_CODES["PajeStartLink"], time, "LINK", "root", vm_name, package_size, link_key, file=file)
+
+# Formating and outputing 'PajeEndLink' trace line.
+def outputPAJEEndLink(time, vm_name, package_size, link_key, file):
+  print(PAJE_CODES["PajeEndLink"], time, "LINK", "root", vm_name, package_size, link_key, file=file)
+
+# Generating CPU/MEM trace consumption from 'f_input' into 'f_output'
+def tracingCPUMEM(vm, f_input, f_output):
+  
+  # Checking file first line.
   line = f_input.readline()
   line_cols = line.split(';')
-  if((not line) or (line_cols[1] != NETWORK_START)):
+
+  if(line_cols[1] != CPU_MEM_START):
+    sys.exit(f"Wrong file format:'{f_input.name}'.")
+
+  previous_time = datetime.strptime(line_cols[0], CPU_MEM_TIME_MASK)
+  total_time = timedelta()
+  
+  for line in f_input.readlines():
+    line_cols = line.split(';')
+
+    # Checking file last line.
+    if(line_cols[1] == CPU_MEM_END):
+      break
+
+    curr_time = datetime.strptime(line_cols[0], CPU_MEM_TIME_MASK)
+    previous_time = curr_time
+    total_time += (curr_time - previous_time)
+    tt_seconds = total_time.total_seconds()
+    
+    # Loop through each vm entry in "line"
+    for vm_entry in line_cols[1:]:
+      vm_cols = vm_entry.split()
+
+      # If entry corresponds to the current vm, register values.
+      if(vm_cols[0] == vm["name"]):
+        outputPAJEVariable(tt_seconds, vm["name"], 'MEM', vm_cols[2], f_output)
+        outputPAJEVariable(tt_seconds, vm["name"], 'CPU', vm_cols[6], f_output)
+
+# Generating NETWORK trace consumption from 'f_input' into 'f_output'
+def tracingNetwork(vm, f_input, vm_list, f_output):
+
+  # Checking file first line.
+  line = f_input.readline()
+  line_cols = line.split(';')
+  if(line_cols[1] != NETWORK_START):
     sys.exit(f"Wrong file format:'{f_input.name}'.")
 
   previous_time = datetime.strptime(line_cols[0], NETWORK_TIME_MASK)
   total_time = timedelta()
 
   links_dict = {}
-  output_file = open(vm['trace_path'], 'w')
   
   for line in f_input.readlines():
     line_cols = line.split(';')
 
+    # Checking file last line.
     if(line_cols[1] == NETWORK_END):
       break
 
     curr_time, _, nic, size, ori_dest, *_ = line_cols
-    
     curr_time = datetime.strptime(curr_time, NETWORK_TIME_MASK) 
     size = size.split()[0]
 
+    # Check if the entry maches the vm vnic.
     if(vm["vnic"] == nic.strip()):
       total_time += (curr_time - previous_time)
+      tt_seconds = total_time.total_seconds()
       previous_time = curr_time
 
       ori_dest = ori_dest.split()
       sender = ori_dest[1].split(':')[0]
       receiver = ori_dest[3].split(':')[0]
 
-      link = ''
+      # Check if vm is the sender of the message.
       if(sender == vm["ip"]):
-        vm_counterpar = searchVM(vm_list, "ip", receiver)
-        if(vm_counterpar):
-          link = f'{vm["name"]}:{vm_counterpar["name"]}'
+        vm_counterpart = searchVM(vm_list, "ip", receiver)
+        # Check if the counterpar is another vm from experiment.
+        if(vm_counterpart):
+          link = f'{vm["name"]}:{vm_counterpart["name"]}'
+          order = links_dict.setdefault(link, 0)
+          outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
+          links_dict[link] += 1
+        # If the conterpart is unknown.
         else:
-          link = f'{vm["name"]}:Unknown'
-        order = links_dict.setdefault(link, 0)
-        outputPAJEStartLink(total_time.total_seconds(),vm["name"], size, f'{link}|{order}', output_file)
-        links_dict[link] += 1
+          link = f'{vm["name"]}:{UNKNOWN_HOST}'
+          order = links_dict.setdefault(link, 0)
+          outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
+          outputPAJEEndLink((tt_seconds + 0.1),vm["name"], size, f'{link}|{order}', f_output)
+          links_dict[link] += 1
 
+      # Check if vm is the receiver of the message.
       elif(receiver == vm["ip"]):
-        vm_counterpar = searchVM(vm_list, "ip", sender)     
-        if(vm_counterpar):
-          link = f'{vm_counterpar["name"]}:{vm["name"]}'
+        vm_counterpart = searchVM(vm_list, "ip", sender) 
+        # Check if the counterpar is another vm from experiment.    
+        if(vm_counterpart):
+          link = f'{vm_counterpart["name"]}:{vm["name"]}'
+          order = links_dict.setdefault(link, 0)
+          outputPAJEEndLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
+          links_dict[link] += 1
+        # If the conterpart is unknown.
         else:
-          link = f'Unknown:{vm["name"]}'
-        order = links_dict.setdefault(link, 0)
-        outputPAJEEndLink(total_time.total_seconds(),vm["name"], size, f'{link}|{order}', output_file)
-        links_dict[link] += 1
-
+          link = f'{UNKNOWN_HOST}:{vm["name"]}'
+          order = links_dict.setdefault(link, 0)
+          outputPAJEStartLink((tt_seconds - 0.1),vm["name"], size, f'{link}|{order}', f_output)
+          outputPAJEEndLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
+          links_dict[link] += 1
+      
+      # Report if the vm does not act as sender or receiver.
       else:
         sys.exit(f"Uncomum Network Comunication: '{line}' for '{vm['name']}'.")
 
+# Calling trace generators for each vm into 'host'.
 def generateTraceFiles(host, vm_list):
     
   c_m_in = open(host['cpu_mem_source'], 'r')
@@ -170,12 +209,18 @@ def generateTraceFiles(host, vm_list):
   
   # PARALELIZATION POINT.
   for vm in host['virtualMachines']:
-    tracingNetwork(vm, network_in, vm['trace_path'], vm_list)
-    # tracingCPUMEM(vm, c_m_in, vm['trace_path'])
+    print(f'\tGenerating Traces for {vm["name"]}...')
+    with open(vm['trace_path'], 'w') as f_output:
+      print("# CPU / MEM TRACES", file=f_output)
+      tracingCPUMEM(vm, c_m_in, f_output)
+      print("\n# NETWORK TRACES", file=f_output)
+      tracingNetwork(vm, network_in, vm_list, f_output)
+    print('\tDone!')
   
   network_in.close()
   c_m_in.close()
 
+# Parsing program initialization arguments. 
 def parsingArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_folder", help="Path to source folder.")
@@ -184,41 +229,32 @@ def parsingArguments():
 
     return os.path.normpath(args.input_folder), os.path.normpath(args.output_folder)
 
-def checkFoldersExistence(path_in, path_out):
-  if(not os.path.isdir(path_in)):
-    sys.exit(f"Folder '{path_in}' does not exists.")
-  if(not os.path.isdir(path_out)):
-    sys.exit(f"Folder '{path_out}' does not exists.")
-
-def generateVmList(envs):
-  vm_list = []
-
-  for host in envs['hosts']:
-    vm_list.extend(host["virtualMachines"])
-
-  return vm_list
 #=============================
 #       Main code
 #=============================
 
 if __name__ == '__main__':
-    
+  
   input_folder, output_folder = parsingArguments()
   checkFoldersExistence(input_folder, output_folder)
 
-  print(input_folder, output_folder)
-
+  # Generating output folders.
   helper.createFolder(f'{output_folder}/traces')
   helper.createFolder(f'{output_folder}/traces/{EXPERIMENT_ID}')
 
+  # Recovering environments.
   envs = recoverEnvironments(f'{input_folder}/environments.json') 
 
+  # Registering input an ouput files path.
   agregatePaths(envs, input_folder, output_folder)
   
+  # Recoverting list of vms.
   vm_list = generateVmList(envs)
 
   # PARALELIZATION POINT.
   for host in envs['hosts']:
     helper.createFolder(host['trace_folder'])
+    print(f'Generating Traces for {host["hostname"]}...')
     generateTraceFiles(host, vm_list)
+    print(f'Done!')
   
