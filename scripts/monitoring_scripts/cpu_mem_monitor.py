@@ -59,7 +59,7 @@ def getMemConsumption(dom):
 def getCPUConsumption(dom):
   timestamp = time.time()
 
-  state, maxmem, mem, cpus, cput = dom.info()
+  _, _, _, _, cput = dom.info()
 
   percCPU = ((cput - dom.prevCput) / ((timestamp - dom.pTimeStamp) * 10_000_000))
 
