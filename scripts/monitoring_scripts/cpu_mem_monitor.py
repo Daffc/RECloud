@@ -35,17 +35,15 @@ def startAllBalloonPeriods(doms):
   for dom in doms:
     try:
       subprocess.check_call(['virsh', 'dommemstat', '--domain', dom.name(), '--period', '1']) 
-    except subprocess.CalledProcessError:
-      print(f'Error while definning Balloon Period for {dom.name()}. Closing process.')
-      exit(1)
+    except subprocess.CalledProcessError as e:
+      sys.exit(f'Error while definning Balloon Period for {dom.name()}: {e}')
 
 def stopAllBalloonPeriods(doms):
   for dom in doms:
     try:
       subprocess.check_call(['virsh', 'dommemstat', '--domain', dom.name(), '--period', '0'])
-    except subprocess.CalledProcessError:
-      print(f'Error while definning Balloon Period for {dom.name()}. Closing process.')
-      exit(1)
+    except subprocess.CalledProcessError as e:
+      sys.exit(f'Error while definning Balloon Period for {dom.name()}:{e}')
 
 def getMemConsumption(dom):
   stats  = dom.memoryStats()
@@ -76,8 +74,7 @@ def defineOutputFile(path):
     try:
       file = open(str(path), 'w')
     except Exception as e:
-      print(f"Couldn't open file '{path}': {e}.")
-      exit(1)
+      sys.exit(f"Couldn't open file '{path}': {e}.")
     return file
   else:
     return sys.stdout
