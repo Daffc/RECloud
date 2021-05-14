@@ -1,3 +1,3 @@
 [submodule "scripts/iptraf-ng"]
-	path = scripts/iptraf-ng
+	path = scripts/monitoring_scripts/iptraf-ng
 	url = git@github.com:iptraf-ng/iptraf-ng.git
