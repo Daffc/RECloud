@@ -6,6 +6,7 @@ import time
 import signal
 import subprocess
 import setproctitle
+import argparse
 from datetime import datetime
 
 
@@ -68,19 +69,26 @@ def getCPUConsumption(dom):
   
   return percCPU
 
-# Redefine default output according to args[0] paramather.
-def setOutput(args):
-  if len(args):
+# Returns output for program.
+def defineOutputFile(path):
+  if path != '':
+    os.path.normpath(path)
     try:
-      file = open(str(args[0]), 'a')
-      try:
-        sys.stdout = file
-      except Exception as e:
-        print(f"Coundn't redirect output: {e}.")
-        exit(1)
+      file = open(str(path), 'w')
     except Exception as e:
-      print(f"Couldn't open file '{args[0]}': {e}.")
+      print(f"Couldn't open file '{path}': {e}.")
       exit(1)
+    return file
+  else:
+    return sys.stdout
+
+# Parsing program initialization arguments. 
+def parsingArguments():
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description="Program to collect CPU and Memory data from Virtual Machines.\nDisplayed data will follow the schema for each time interval:\n\tTIME; [VM0]; [VM1]; [VM2] ...\nEach [VMN] entry will have the following Information:\n\tVM-NAME VM-MEM-ABS VM-MEM-PERC VM-CPU-PERC.")
+    parser.add_argument("-o", default='', required=False, help="Path to output file. If not informed, data will be displayed in stdout.")
+    args = parser.parse_args()
+
+    return args.o
 
 #=============================
 #       Main code
@@ -88,7 +96,9 @@ def setOutput(args):
 
 if __name__ == '__main__':
   
-  setOutput(sys.argv[1:])  
+  output_file_path = parsingArguments()
+
+  f_output = defineOutputFile(output_file_path)  
   domName = socket.gethostname()
 
   conn = lh.libvirtConnect()
@@ -106,21 +116,22 @@ if __name__ == '__main__':
     getCPUConsumption(dom)
   time.sleep(INTERVAL_SEC)
 
-  print(f'********* Start Monitoring at {datetime.now().strftime(TIME_MASK)} **********')
+  print(f'********* Start Monitoring at {datetime.now().strftime(TIME_MASK)} **********', file=f_output)
   while not killer.kill_now:
   
     list_vm_data = []
     for dom in doms:
-      curMem, curMemPercent = getMemConsumption(dom)
+      curMem, curMemPerc = getMemConsumption(dom)
       percCPU = getCPUConsumption(dom)
-      list_vm_data.append(f'\t{dom.name()}\t{curMem}\t{curMemPercent:.2f}\t{round(percCPU, 2)}')
+      list_vm_data.append(f' {dom.name()} {curMem} {curMemPerc:.2f} {round(percCPU, 2)}')
     
-    print(datetime.now().strftime(TIME_MASK), *list_vm_data, sep=';' ) 
+    print(datetime.now().strftime(TIME_MASK), *list_vm_data, sep=';', file=f_output ) 
     time.sleep(INTERVAL_SEC)
     
-  print(f'********* Stopping Monitoring at {datetime.now().strftime(TIME_MASK)} **********\n')
+  print(f'********* Stopping Monitoring at {datetime.now().strftime(TIME_MASK)} **********\n', file=f_output)
 
   stopAllBalloonPeriods(doms)
   conn.close()
+  f_output.close()
   exit(0)
 
