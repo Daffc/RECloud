@@ -16,7 +16,7 @@ setproctitle.setthreadtitle(os.path.basename(__file__))
 
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 INTERVAL_SEC = 0.5
-TIME_MASK = "%d/%m/%Y %H:%M:%S.%f"
+TIME_MASK = "%a %b %d %H:%M:%S.%f %Y"
 
 #=============================
 #   Including Project Libs
@@ -106,17 +106,19 @@ if __name__ == '__main__':
     getCPUConsumption(dom)
   time.sleep(INTERVAL_SEC)
 
-  print(f'********* Start Monitoring at {datetime.now().strftime(TIME_MASK)} **********', flush=True)
+  print(f'********* Start Monitoring at {datetime.now().strftime(TIME_MASK)} **********')
   while not killer.kill_now:
   
-    print(datetime.now().strftime(TIME_MASK)) 
+    list_vm_data = []
     for dom in doms:
       curMem, curMemPercent = getMemConsumption(dom)
       percCPU = getCPUConsumption(dom)
-      print(f'\t{dom.name()}\tcurMem: {curMem}\tcurMemPercent:{curMemPercent:.2f}\tpercCPU: {round(percCPU, 2)}', flush=True)
+      list_vm_data.append(f'\t{dom.name()}\t{curMem}\t{curMemPercent:.2f}\t{round(percCPU, 2)}')
+    
+    print(datetime.now().strftime(TIME_MASK), *list_vm_data, sep=';' ) 
     time.sleep(INTERVAL_SEC)
-
-  print(f'********* Stopping Monitoring at {datetime.now().strftime(TIME_MASK)} **********\n', flush=True)
+    
+  print(f'********* Stopping Monitoring at {datetime.now().strftime(TIME_MASK)} **********\n')
 
   stopAllBalloonPeriods(doms)
   conn.close()
