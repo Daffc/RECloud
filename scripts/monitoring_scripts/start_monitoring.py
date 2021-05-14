@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+import signal
 import subprocess
 import setproctitle
 
@@ -39,18 +40,18 @@ if __name__ == "__main__":
   helper.createFolder(DATA_FOLDER_PATH)
 
   # Calling 'top' and 'iptraf-ng' processes.
-  cpu_mem = subprocess.Popen([VENV_PATH, f"{PROGRAM_PATH}/cpu_mem_monitor.py", CPU_MEM_OUTPUT_FILE])
-  network = subprocess.Popen(["iptraf-ng", "-i", "all", "-B", "-L", NETWORK_OUTPUT_FILE])
+  cpu_mem = subprocess.Popen([VENV_PATH, f"{PROGRAM_PATH}/cpu_mem_monitor.py", "-o", CPU_MEM_OUTPUT_FILE])
+  network = subprocess.Popen([f"{PROGRAM_PATH}/iptraf-ng/iptraf-ng", "-i", "all", "-B", "-L", NETWORK_OUTPUT_FILE])
   
-  print(f'Monitoring environment with  "cpu_mem_monitor.py" (PID=[{cpu_mem.pid}]) and iptraf (PID=[{network.pid}, {network.pid + 1}])...')
+  print(f'Monitoring environment with  "cpu_mem_monitor.py" (PID=[{cpu_mem.pid}]) and iptraf-ng (PID=[{network.pid}, {network.pid + 1}])...')
   killer = GracefulKiller()
   while not killer.kill_now:
     time.sleep(1)
-  print(f'Killing monitoring processes "cpu_mem_monitor.py" (PID=[{cpu_mem.pid}]) and iptraf (PID=[{network.pid}, {network.pid + 1}])...')
-
-  # killing the 'top' and 'iptraf-ng' processes.
-  #(NOTE) for some unknow reason, it 'iptraf' calls two pocesses when called by python, so its in needed to kill 'network.pid' as wall as 'network.pid + 1'
-  subprocess.call(["kill",  "-USR2", str(network.pid)])
+  print(f'Killing monitoring processes "cpu_mem_monitor.py" (PID=[{cpu_mem.pid}]) and iptraf-ng (PID=[{network.pid}, {network.pid + 1}])...')
+  
+  # killing the 'cpu_mem_monitor.py' and 'iptraf-ng' processes.
+  #(NOTE) When called, "iptraf-ng" creates two processes, while the first becomes <defunct> the second does the traffic monitoring.
+  os.kill((network.pid + 1), signal.SIGUSR2)
   cpu_mem.terminate()
   
   print(f'Exiting monitoring processes halder.')
