@@ -125,8 +125,8 @@ def tracingCPUMEM(vm, f_input, f_output):
 
       # If entry corresponds to the current vm, register values.
       if(vm_cols[0] == vm["name"]):
-        outputPAJEVariable(tt_seconds, vm["name"], 'MEM', vm_cols[2], f_output)
-        outputPAJEVariable(tt_seconds, vm["name"], 'CPU', vm_cols[6], f_output)
+        outputPAJEVariable(tt_seconds, vm["name"], 'MEM', vm_cols[1], f_output)
+        outputPAJEVariable(tt_seconds, vm["name"], 'CPU', vm_cols[3], f_output)
 
 # Generating NETWORK trace consumption from 'f_input' into 'f_output'
 def tracingNetwork(vm, f_input, vm_list, f_output):
@@ -211,6 +211,9 @@ def generateTraceFiles(host, vm_list):
   for vm in host['virtualMachines']:
     print(f'\tGenerating Traces for {vm["name"]}...')
     with open(vm['trace_path'], 'w') as f_output:
+      c_m_in.seek(0)
+      network_in.seek(0)
+
       print("# CPU / MEM TRACES", file=f_output)
       tracingCPUMEM(vm, c_m_in, f_output)
       print("\n# NETWORK TRACES", file=f_output)
