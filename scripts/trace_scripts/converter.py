@@ -199,7 +199,7 @@ def tracingNetwork(vm, f_input, vm_list, f_output):
       
       # Report if the vm does not act as sender or receiver.
       else:
-        sys.exit(f"Uncomum Network Comunication: '{line}' for '{vm['name']}'.")
+        print(f"\t\tUncommon Network Communication: '{line.rstrip()}' for '{vm['name']}'.")
 
 # Calling trace generators for each vm into 'host'.
 def generateTraceFiles(host, vm_list):
