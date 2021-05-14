@@ -1,0 +1,26 @@
+File root.trace
+
+
+Warnings :
+105 : the definition is not identified
+106 : the definition is not identified
+107 : the definition is not identified
+109 : the definition is not identified
+110 : the definition is not identified
+112 : the definition is not identified
+114 : the definition is not identified
+117 : the definition is not identified
+121 : the definition is not identified
+125 : the definition is not identified
+128 : the definition is not identified
+129 : the definition is not identified
+130 : the definition is not identified
+132 : the definition is not identified
+134 : the definition is not identified
+139 : the definition is not identified
+144 : the definition is not identified
+320 : the definition is not identified
+345 : the definition is not identified
+521 : the definition is not identified
+
+Your trace has 0 errors and 20 warnings.
