@@ -13,7 +13,7 @@ from datetime import datetime
 #=============================
 #   Some General Definitions
 #=============================
-setproctitle.setthreadtitle(os.path.basename(__file__))
+setproctitle.setproctitle(os.path.basename(__file__)[:-3])
 
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 INTERVAL_SEC = 0.5
