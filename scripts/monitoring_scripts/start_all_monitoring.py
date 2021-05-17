@@ -61,6 +61,12 @@ def killMonitoringProcesses(clients, password):
   print('OK!', flush=True)
 
 
+def checkPaths(host_file, output_folder):
+  if(not os.path.isfile(host_file)):
+    exit(f"ERROR: '{host_file}' either does not exists or is not a file.")
+  if(not os.path.isdir(output_folder)):
+    exit(f"ERROR: '{output_folder}' either does not exists or is not a folder.")
+
 # Parsing program initialization arguments. 
 def parsingArguments():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description="Program to start CPU, Memory and Network monitorinment across the node machines listed into 'host_file' trough 'start_monitoring.py' in each of them.\nAter the conclusion of the monitoring proceses, the monitoring  and the environment data are stored into 'output_folder'.")
@@ -80,6 +86,8 @@ if __name__ == "__main__":
   host_file = os.path.normpath(host_file)
   output_folder = os.path.normpath(output_folder)
 
+  # Verify if 'host_file' and 'output_folder' are valid.
+  checkPaths(host_file, output_folder)
 
   user, password = helper.recoverCredentials()
   hosts = helper.recoverHosts(host_file, FileType.TEXT)
