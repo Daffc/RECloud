@@ -116,10 +116,10 @@ def sendFiles(clients, origin, destination):
   print('OK!', flush=True)
 
 # Sending files across the "clients" according to the 'origin' and 'destination' folders.
-def receiveFiles(clients, origin, destination):
+def receiveFiles(clients, origin, destination, separator='_'):
   print(f'Receiving files from {clients.hosts} (from \'{origin}\' to \'{destination}\')... ', flush=True)
 
-  output = clients.scp_recv(origin, destination, recurse=True)
+  output = clients.copy_remote_file(origin, destination, recurse=True,  suffix_separator=separator)
   joinall(output, raise_error=True)
 
   print('OK!', flush=True)

@@ -5,15 +5,21 @@ import sys
 import time
 import setproctitle
 import argparse
+from datetime import datetime
+import json
 
 #=============================
 #   Some General Definitions
 #=============================
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 setproctitle.setthreadtitle(os.path.basename(__file__))
+
+EXPERIMENT_ID = f'experiment_{datetime.now().strftime("%d-%m-%Y_%H:%M:%S")}'
+
 VENV_PATH = os.path.normpath(f'{PROGRAM_PATH}/../../venv/bin/activate')
 ENV_EXEC_PATH = os.path.normpath(f'{PROGRAM_PATH}/../environment_scripts/environment.py')
 MONITOR_PATH = os.path.normpath(f'{PROGRAM_PATH}/start_monitoring.py')
+DATA_PATH = os.path.normpath(f'{PROGRAM_PATH}/../data')
 
 #=============================
 #   Including Project Libs
@@ -67,6 +73,28 @@ def checkPaths(host_file, output_folder):
   if(not os.path.isdir(output_folder)):
     exit(f"ERROR: '{output_folder}' either does not exists or is not a folder.")
 
+def recoverDataFromNodes(clients, output_folder):
+
+  output = f'{output_folder}/{EXPERIMENT_ID}/'
+
+  helper.createFolder(output)
+  helper.receiveFiles(clients, DATA_PATH, output, separator='')
+
+  data_folders = [x[0] for x in os.walk(output)]
+
+  print(f"Defining 'environments.json' file for {clients.hosts}.", flush=True)
+  
+  envs = {"hosts": []}
+  for node_dir in data_folders[1:]:
+    with open(f"{node_dir}/environment.json", "r") as file:
+      data =  json.load(file)
+      envs["hosts"].append(data)
+  with open(f"{output}/environments.json", "w") as file:
+    json.dump(envs, file)
+
+  print('OK!', flush=True)
+
+
 # Parsing program initialization arguments. 
 def parsingArguments():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description="Program to start CPU, Memory and Network monitorinment across the node machines listed into 'host_file' trough 'start_monitoring.py' in each of them.\nAter the conclusion of the monitoring proceses, the monitoring  and the environment data are stored into 'output_folder'.")
@@ -109,4 +137,7 @@ if __name__ == "__main__":
 
   # Killing monitoring processes for all the 
   killMonitoringProcesses(clients, password)
+
+  # Recovering Data from Nodes
+  recoverDataFromNodes(clients, output_folder)
 
