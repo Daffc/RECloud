@@ -32,9 +32,9 @@ class RemoteCommand:
       try:
         for host_out in output:
           for line in host_out.stdout:
-            print(f'\t [{host_out.host}] {line}')
+            print(f'\t[{host_out.host}] {line}')
           for line in host_out.stderr:
-            print(f'\t [{host_out.host}] {line}')
+            print(f'\t[{host_out.host}] {line}')
         return
       except Timeout:
         tries += 1
