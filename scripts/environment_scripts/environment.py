@@ -6,11 +6,13 @@ import os
 import sys
 import socket
 import collections
+import setproctitle
 
 
 #=============================
 #   Some General Definitions
 #=============================
+setproctitle.setproctitle(os.path.basename(__file__)[:-3])
 
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 DATA_FOLDER_PATH = f'{PROGRAM_PATH}/../data'
