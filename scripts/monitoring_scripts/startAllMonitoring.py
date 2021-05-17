@@ -21,6 +21,7 @@ ENV_EXEC_PATH = os.path.normpath(f'{PROGRAM_PATH}/../environment_scripts/environ
 MONITOR_PATH = os.path.normpath(f'{PROGRAM_PATH}/startMonitoring.py')
 DATA_PATH = os.path.normpath(f'{PROGRAM_PATH}/../data')
 
+WAIT_END_INTERVAL = 0.5
 #=============================
 #   Including Project Libs
 #=============================
@@ -60,10 +61,27 @@ def runAllMonitoring(clients, password):
   # clients.run_command('echo '+ password +' | sudo -S -- sh -c ". ~/tg_scripts/venv/bin/activate && ~/tg_scripts/scripts/monitoring_scripts/startMonitoring.py" ')
   clients.run_command(f'echo {password} | sudo -S -- sh -c ". {VENV_PATH} && {MONITOR_PATH}"')
 
+# Checking if 'startMonitoring' process has been ended.
+def checkMonitorsEnd(clients):
+  saida = clients.run_command(f'pgrep startMonitoring')
+  for host_out in saida:
+    for line in host_out.stdout:
+      if(line):
+        print(f'\t[{host_out.host}] Process "startMonitoring" (PID={line}) not finished, waiting {WAIT_END_INTERVAL} seconds and trying again...', flush=True)
+        return False
+  
+  return True
+
 # Kill the 'startMonitoring.py' processes for all 'clients' machines.
 def killMonitoringProcesses(clients, password):
   print(f'Killing processes in clients {clients.hosts}...', flush=True)
   RemoteCommand(clients,'echo '+ password +' | sudo -S killall startMonitoring', 10, False).remoteCommandHandler()
+
+  monitors_ended = checkMonitorsEnd(clients)  
+  while(not monitors_ended):
+    time.sleep(WAIT_END_INTERVAL)
+    monitors_ended = checkMonitorsEnd(clients)
+
   print('OK!', flush=True)
 
 
@@ -78,14 +96,6 @@ def recoverDataFromNodes(clients, password, output_folder):
   output = f'{output_folder}/{EXPERIMENT_ID}/'
 
   helper.createFolder(output)
-
-
-    # output = clients.run_command(f'echo {password} | sudo -S sudo lsof -f -w -- {}')
-          
-    # try:
-    #   for host_out in output:
-    #     for line in host_out.stdout:
-    #       print(f'\t [{host_out.host}] {line}')
 
   helper.receiveFiles(clients, DATA_PATH, output, separator='')
 
