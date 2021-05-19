@@ -12,6 +12,7 @@ import argparse
 #   Some General Definitions
 #=============================
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
+PAJE_HEADER_FILE = f'{PROGRAM_PATH}/header.trace'
 CPU_MEM_TIME_MASK = "%a %b %d %H:%M:%S.%f %Y"
 NETWORK_TIME_MASK = "%a %b %d %H:%M:%S %Y"
 CPU_MEM_START = " ********* Start Monitoring **********\n"
@@ -46,6 +47,7 @@ import helper
 
 # Inserting into "env" entries input and output data paths for each element.
 def agregatePaths(envs, input_folder, output_folder):
+  envs['output_root_trace'] = f'{output_folder}/traces/{EXPERIMENT_ID}/root.trace'
   for host in envs['hosts']:
     host['trace_folder'] = f'{output_folder}/traces/{EXPERIMENT_ID}/{host["hostname"]}'
     host['cpu_mem_source'] = f'{input_folder}/{host["hostname"]}/cpu_mem_output.txt'
@@ -98,6 +100,11 @@ def outputPAJEStartLink(time, vm_name, package_size, link_key, file):
 # Formating and outputing 'PajeEndLink' trace line.
 def outputPAJEEndLink(time, vm_name, package_size, link_key, file):
   print(PAJE_CODES["PajeEndLink"], time, "LINK", "root", vm_name, package_size, link_key, file=file)
+
+# Formating and outputing 'PajeCreateContainer' trace line.
+def outputPAJECreateContainer(time, container_name, container_type, container_parent, file):
+  print(PAJE_CODES["PajeCreateContainer"], time, container_name, container_type, container_parent, container_name, file=file)
+  
 
 # Generating CPU/MEM trace consumption from 'f_input' into 'f_output'
 def tracingCPUMEM(vm, f_input, f_output):
@@ -228,22 +235,29 @@ def generateTraceFiles(host, vm_list):
   network_in.close()
   c_m_in.close()
 
+def agrupateTraces(envs):
+  with open(envs['output_root_trace'], 'w') as r_trace:
+    with open(PAJE_HEADER_FILE, 'r') as h_trace:
+      for line in h_trace:
+        r_trace.write(line)
+                                                                                  
 # Parsing program initialization arguments. 
 def parsingArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_folder", help="Path to source folder.")
     parser.add_argument("output_folder", help="Path to output folder.")
+    parser.add_argument("-g", action='store_const', const=True, help="Indicates to agrupate the generated traces into a single trace 'root.trace' that will be stored in 'output_folder'.")
     args = parser.parse_args()
 
-    return os.path.normpath(args.input_folder), os.path.normpath(args.output_folder)
+    return os.path.normpath(args.input_folder), os.path.normpath(args.output_folder), args.g
 
 #=============================
 #       Main code
 #=============================
 
 if __name__ == '__main__':
-  
-  input_folder, output_folder = parsingArguments()
+
+  input_folder, output_folder, root_trace = parsingArguments()
   checkFoldersExistence(input_folder, output_folder)
 
   # Generating output folders.
@@ -253,7 +267,7 @@ if __name__ == '__main__':
   # Recovering environments.
   envs = recoverEnvironments(f'{input_folder}/environments.json') 
 
-  # Registering input an ouput files path.
+  # Registering input an ouput file paths.
   agregatePaths(envs, input_folder, output_folder)
   
   # Recoverting list of vms.
@@ -265,4 +279,6 @@ if __name__ == '__main__':
     print(f'Generating Traces for {host["hostname"]}...')
     generateTraceFiles(host, vm_list)
     print(f'Done!')
-  
+
+  if(root_trace): 
+    agrupateTraces(envs)
