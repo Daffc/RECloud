@@ -23,9 +23,14 @@ UNKNOWN_HOST = "Unknown"
 EXPERIMENT_ID = datetime.now().strftime('%d-%m-%Y_%H:%M')
 
 PAJE_CODES = {
-  'PajeSetVariable' : 8,
-  'PajeStartLink' : 14,
-  'PajeEndLink': 15
+  'PajeDefineContainerType': 0,
+  'PajeDefineVariableType': 1,
+  'PajeDefineLinkType': 4,
+  'PajeCreateContainer': 6,
+  'PajeDestroyContainer': 7,
+  'PajeSetVariable': 8,
+  'PajeStartLink': 14,
+  'PajeEndLink': 15,
 }
 
 #=============================
