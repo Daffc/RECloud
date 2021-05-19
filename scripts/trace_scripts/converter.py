@@ -240,7 +240,17 @@ def agrupateTraces(envs):
     with open(PAJE_HEADER_FILE, 'r') as h_trace:
       for line in h_trace:
         r_trace.write(line)
-                                                                                  
+
+    print('\n# ----------------------------------------\n# -- Initializing Container & Variables --\n# ----------------------------------------\n', file=r_trace)
+                                                          
+    outputPAJECreateContainer(0.0, "root", 'ROOT', '0', r_trace)
+    for host in envs['hosts']:
+      outputPAJECreateContainer(0.0, host['hostname'], 'NODE', 'root', r_trace)
+      for vm in host['virtualMachines']:
+        outputPAJECreateContainer(0.0, vm['name'], 'VM', host['hostname'], r_trace)
+        outputPAJEVariable(0.0, vm["name"], 'MEM', 0, r_trace)
+        outputPAJEVariable(0.0, vm["name"], 'CPU', 0, r_trace)
+                                                                          
 # Parsing program initialization arguments. 
 def parsingArguments():
     parser = argparse.ArgumentParser()
