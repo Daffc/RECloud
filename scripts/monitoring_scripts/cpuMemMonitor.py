@@ -113,7 +113,7 @@ if __name__ == '__main__':
     getCPUConsumption(dom)
   time.sleep(INTERVAL_SEC)
 
-  print(datetime.now().strftime(TIME_MASK), '********* Start Monitoring **********', sep=';', file=f_output)
+  print(datetime.now().strftime(TIME_MASK), ' ********* Start Monitoring **********', sep=';', file=f_output)
   while not killer.kill_now:
   
     list_vm_data = []
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     print(datetime.now().strftime(TIME_MASK), *list_vm_data, sep=';', file=f_output ) 
     time.sleep(INTERVAL_SEC)
     
-  print(datetime.now().strftime(TIME_MASK),'********* Stopping Monitoring **********\n', sep=';', file=f_output)
+  print(datetime.now().strftime(TIME_MASK),' ********* Stopping Monitoring **********\n', sep=';', file=f_output)
 
   stopAllBalloonPeriods(doms)
   conn.close()
