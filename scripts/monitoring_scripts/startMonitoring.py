@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import signal
+import errno
 import subprocess
 import setproctitle
 
@@ -27,6 +28,32 @@ import helper
 from sig_helper import GracefulKiller
 
 #=============================
+#   Local Functions
+#=============================
+# Exclude file in 'path' if it exists.
+def removeNetworkFile(path):
+  if os.path.exists(path):
+      os.remove(path)
+
+# Check if process with 'pid' has finished.
+def hasProcessEnd(pid):        
+    try:
+        os.kill(pid, 0)
+    except OSError as err:
+        if err.errno == errno.ESRCH:
+            # If process does no exists, return True
+            return True
+    return False
+
+# Wait until all subprocesses with pid in 'subprocess id' has finished.
+def waitSubprocessesDie(subprocess_id):
+  print("Wait for subprocesses to finish...")
+  exit_codes = [hasProcessEnd(p) for p in subprocess_id]
+  while(not all(exit_codes)):
+    time.sleep(1)
+    exit_codes = [hasProcessEnd(p) for p in subprocess_id]
+  print("Done!")
+#=============================
 #       Main code
 #=============================
 
@@ -38,6 +65,9 @@ if __name__ == "__main__":
 
   # Creating monitoring folder
   helper.createFolder(DATA_FOLDER_PATH)
+
+  # Removing Network Monitoring file from previous experiments.
+  removeNetworkFile(NETWORK_OUTPUT_FILE)
 
   # Calling 'top' and 'iptraf-ng' processes.
   cpu_mem = subprocess.Popen([VENV_PATH, f"{PROGRAM_PATH}/cpuMemMonitor.py", "-o", CPU_MEM_OUTPUT_FILE])
@@ -51,8 +81,14 @@ if __name__ == "__main__":
   
   # killing the 'cpuMemMonitor.py' and 'iptraf-ng' processes.
   #(NOTE) When called, "iptraf-ng" creates two processes, while the first becomes <defunct> the second does the traffic monitoring.
-  cpu_mem.terminate()
+  os.kill(cpu_mem.pid, signal.SIGUSR2)
   os.kill((network.pid + 1), signal.SIGUSR2)
-  os.wait()
+
+  # Avoiding subprocesses to remain as zombies.
+  cpu_mem.communicate()
+  network.communicate()
+
+  # Wainting for subprocesses conclusion.
+  waitSubprocessesDie([cpu_mem.pid, (network.pid + 1)])
   
   print(f'Exiting monitoring processes halder.')
