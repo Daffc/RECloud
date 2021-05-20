@@ -83,7 +83,7 @@ clients = helper.defineConnection(user, password, hosts)
 helper.createFolder(f'{PROGRAM_PATH}/keys')
 
 # Sending keys and authorized_keys to the clients
-helper.sendFiles(clients, f'{PROGRAM_PATH}/keys/.ssh/', "./.ssh")
+helper.sendFiles(clients, f'{PROGRAM_PATH}/keys/', "./.ssh")
 
 # Changing permission of keys and authorized_keys in clients.
 helper.changeKeyPermissions(clients)
