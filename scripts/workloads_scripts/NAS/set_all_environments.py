@@ -25,12 +25,6 @@ from helper import FileType
 #   Local Functions
 #=============================
 
-# for the purpose of run this script, after that this SHOULD BE MODIFIED.
-sys.path.append(f'{PROGRAM_PATH}/../../libs')
-
-import helper
-from helper import RemoteCommand
-from helper import FileType
 # Calling 'set_envirnment.py' for all 'clients'.
 def setAllEnvironments(clients, user, password):
   print(f'Setting commands to "Noninteractive"... ', flush=True)                                                      
