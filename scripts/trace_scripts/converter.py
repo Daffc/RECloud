@@ -235,15 +235,18 @@ def generateTraceFiles(host, vm_list):
   network_in.close()
   c_m_in.close()
 
+# Agrupates the traces into 'root.trace' file (readable by ViTE).
 def agrupateTraces(envs):
+  print(f'Agrupating traces into "root.trace" file (readable by ViTE)...')
+
   with open(envs['output_root_trace'], 'w') as r_trace:
     with open(PAJE_HEADER_FILE, 'r') as h_trace:
       for line in h_trace:
         r_trace.write(line)
 
-    print('\n# ----------------------------------------\n# -- Initializing Container & Variables --\n# ----------------------------------------\n', file=r_trace)
-                                                          
+    r_trace.write('\n# ----------------------------------------\n# -- Initializing Container & Variables --\n# ----------------------------------------\n')                                                    
     outputPAJECreateContainer(0.0, "root", 'ROOT', '0', r_trace)
+    outputPAJECreateContainer(0.0, UNKNOWN_HOST, 'NODE', 'root', r_trace)
     for host in envs['hosts']:
       outputPAJECreateContainer(0.0, host['hostname'], 'NODE', 'root', r_trace)
       for vm in host['virtualMachines']:
@@ -251,6 +254,17 @@ def agrupateTraces(envs):
         outputPAJEVariable(0.0, vm["name"], 'MEM', 0, r_trace)
         outputPAJEVariable(0.0, vm["name"], 'CPU', 0, r_trace)
                                                                           
+    r_trace.write('\n# ----------------------------------------\n# --- Agragating Virtual MAchines Data ---\n# ----------------------------------------\n')
+    for host in envs['hosts']:
+      for vm in host['virtualMachines']:
+        r_trace.write(f'# --- {vm["name"]} ---\n')
+        with open(vm['trace_path'], 'r') as vm_trace:
+          for line in vm_trace:
+            r_trace.write(line)
+
+    print('Done!')
+          
+         
 # Parsing program initialization arguments. 
 def parsingArguments():
     parser = argparse.ArgumentParser()
@@ -290,5 +304,6 @@ if __name__ == '__main__':
     generateTraceFiles(host, vm_list)
     print(f'Done!')
 
+  # If vizualition trace was selected ('-g' argument.)
   if(root_trace): 
     agrupateTraces(envs)
