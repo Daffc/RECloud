@@ -81,8 +81,8 @@ if __name__ == "__main__":
   
   # killing the 'cpuMemMonitor.py' and 'iptraf-ng' processes.
   #(NOTE) When called, "iptraf-ng" creates two processes, while the first becomes <defunct> the second does the traffic monitoring.
-  os.kill(cpu_mem.pid, signal.SIGUSR2)
   os.kill((network.pid + 1), signal.SIGUSR2)
+  cpu_mem.terminate()
 
   # Avoiding subprocesses to remain as zombies.
   cpu_mem.communicate()
