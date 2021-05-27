@@ -11,6 +11,9 @@ NPB_VERSION = 'NPB3.3.1'
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 setproctitle.setthreadtitle(os.path.basename(__file__))
 
+VENV_PATH = os.path.normpath(f'{PROGRAM_PATH}/../../../venv/bin/activate')
+ENV_EXEC_PATH = os.path.normpath(f'{PROGRAM_PATH}/../../environment_scripts/environment.py')
+
 #=============================
 #   Including Project Libs
 #=============================
@@ -69,31 +72,44 @@ def installNPB(clients, password):
   RemoteCommand(clients,f'make suite -C ~/NPB3.3.1/NPB3.3-MPI ', 10, False).remoteCommandHandler()
   print('OK!', flush=True)
 
+def setAllEnvironments(clients, password):
+  print(f'Setting commands to "Noninteractive"... ', flush=True)
+  RemoteCommand(clients, f'echo "debconf debconf/frontend select Noninteractive" | echo {password} | sudo -S debconf-set-selections', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
+
+  print(f'Calling \'environment.py\' for all clients ({clients.hosts})... ', flush=True)
+  RemoteCommand(clients, f'echo {password} | sudo -S -- sh -c ". {VENV_PATH} && {ENV_EXEC_PATH}"', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
+
 #=============================
 #	Main code
 #=============================
-user, password = helper.recoverCredentials()
-hosts = helper.recoverHosts(PROGRAM_PATH +"/../../data/environment.json", FileType.JSON)
-
-
-# Definind Connection with Virtual Machines
-clients = helper.defineConnection(user, password, hosts)
-
-# Creating Temporary folder.
-helper.createFolder(f'{PROGRAM_PATH}/keys')
-
-# Sending keys and authorized_keys to the clients
-helper.sendFiles(clients, f'{PROGRAM_PATH}/keys/', "./.ssh")
-
-# Changing permission of keys and authorized_keys in clients.
-helper.changeKeyPermissions(clients)
-
-# Cross defining fingerprint for all Virtual Machines.
-helper.crossConnect(hosts, clients)
-
-# Intalling Dependeces for MPI
-installDependences(clients, password)
-
-# Installing NPB3.3.1
-installNPB(clients, password)
-
+if __name__ == '__main__':
+  user, password = helper.recoverCredentials()
+  
+  # Run script 'environment.py' for all 'clients'
+  setAllEnvironments(clients, password)
+  hosts = helper.recoverHosts(PROGRAM_PATH +"/../../data/environment.json", FileType.JSON)
+  
+  
+  # Definind Connection with Virtual Machines
+  clients = helper.defineConnection(user, password, hosts)
+  
+  # Creating Temporary folder.
+  helper.createFolder(f'{PROGRAM_PATH}/keys')
+  
+  # Sending keys and authorized_keys to the clients
+  helper.sendFiles(clients, f'{PROGRAM_PATH}/keys/', "./.ssh")
+  
+  # Changing permission of keys and authorized_keys in clients.
+  helper.changeKeyPermissions(clients)
+  
+  # Cross defining fingerprint for all Virtual Machines.
+  helper.crossConnect(hosts, clients)
+  
+  # Intalling Dependeces for MPI
+  installDependences(clients, password)
+  
+  # Installing NPB3.3.1
+  installNPB(clients, password)
+  

@@ -3,6 +3,8 @@
 import os
 import sys
 import setproctitle
+import argparse
+
 #=============================
 #   Some General Definitions
 #=============================
@@ -34,16 +36,28 @@ def setAllEnvironments(clients, user, password):
   print(f'Running \'set_environment.py\' for all clients ... ', flush=True)                                            
   RemoteCommand(clients,f'source ~/tg_scripts/venv/bin/activate && echo \'{user}\n{password}\nN\'| {PROGRAM_PATH}/set_environment.py', 10, False).remoteCommandHandler()          
   print('OK!', flush=True)                                                                                            
-                                                                                                                      
-                                                                                                                      
+
+# Parsing program initialization arguments. 
+def parsingArguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("hostFile", default='', help="Path to file storing list of hosts.")
+    args = parser.parse_args()
+
+    return args.hostFile
+
 #=============================
 #	Main code
 #=============================
-user, password = helper.recoverCredentials()
-hosts = helper.recoverHosts(f"{PROGRAM_PATH}/host_list", FileType.TEXT)
+if __name__ == "__main__":
 
-# Definind Connection with Virtual Machines
-clients = helper.defineConnection(user, password, hosts)
-
-# Run script 'set_environment.py' for all 'clients'
-setAllEnvironments(clients, user, password)
+  host_list_path = parsingArguments()
+  host_list_path = os.path.normpath(host_list_path)
+  hosts = helper.recoverHosts(host_list_path, FileType.TEXT)
+  
+  user, password = helper.recoverCredentials()
+ 
+  # Definind Connection with Virtual Machines
+  clients = helper.defineConnection(user, password, hosts)
+  
+  # Run script 'set_environment.py' for all 'clients'
+  setAllEnvironments(clients, user, password)
