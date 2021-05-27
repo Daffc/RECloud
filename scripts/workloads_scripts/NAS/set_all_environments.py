@@ -12,6 +12,9 @@ import argparse
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 setproctitle.setthreadtitle(os.path.basename(__file__))
 
+VENV_PATH = os.path.normpath(f'{PROGRAM_PATH}/../../../venv/bin/activate')
+ENV_EXEC_PATH = os.path.normpath(f'{PROGRAM_PATH}/../../environment_scripts/environment.py')
+SET_ENV_PATH = os.path.normpath(f'{PROGRAM_PATH}/set_environment.py')
 #=============================
 #   Including Project Libs
 #=============================
@@ -29,13 +32,17 @@ from helper import FileType
 
 # Calling 'set_envirnment.py' for all 'clients'.
 def setAllEnvironments(clients, user, password):
-  print(f'Setting commands to "Noninteractive"... ', flush=True)                                                      
-  RemoteCommand(clients, 'echo "debconf debconf/frontend select Noninteractive" | echo '+ password +' | sudo -S debconf-set-selections', 10, False).remoteCommandHandler()                                                                  
-  print('OK!', flush=True)                                                                                            
-                                                                                                                      
-  print(f'Running \'set_environment.py\' for all clients ... ', flush=True)                                            
-  RemoteCommand(clients,f'source ~/tg_scripts/venv/bin/activate && echo \'{user}\n{password}\nN\'| {PROGRAM_PATH}/set_environment.py', 10, False).remoteCommandHandler()          
-  print('OK!', flush=True)                                                                                            
+  print(f'Setting commands to "Noninteractive"... ', flush=True)
+  RemoteCommand(clients, f'echo "debconf debconf/frontend select Noninteractive" | echo {password} | sudo -S debconf-set-selections', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
+
+  print(f'Calling \'environment.py\' for all clients ({clients.hosts})... ', flush=True)
+  RemoteCommand(clients, f'echo {password} | sudo -S -- sh -c ". {VENV_PATH} && {ENV_EXEC_PATH}"', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
+
+  print(f'Running \'set_environment.py\' for all clients ... ', flush=True)
+  RemoteCommand(clients,f'. {VENV_PATH} && echo \'{user}\n{password}\nN\'| {SET_ENV_PATH}', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
 
 # Parsing program initialization arguments. 
 def parsingArguments():
