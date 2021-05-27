@@ -87,13 +87,13 @@ def setAllEnvironments(clients, password):
 if __name__ == '__main__':
   user, password = helper.recoverCredentials()
   
-  # Run script 'environment.py' for all 'clients'
-  setAllEnvironments(clients, password)
   hosts = helper.recoverHosts(PROGRAM_PATH +"/../../data/environment.json", FileType.JSON)
-  
   
   # Definind Connection with Virtual Machines
   clients = helper.defineConnection(user, password, hosts)
+  
+  # Run script 'environment.py' for all 'clients'
+  setAllEnvironments(clients, password)
   
   # Creating Temporary folder.
   helper.createFolder(f'{PROGRAM_PATH}/keys')
