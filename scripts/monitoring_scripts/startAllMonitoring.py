@@ -93,7 +93,7 @@ def checkPaths(host_file, output_folder):
 
 def recoverDataFromNodes(clients, password, output_folder):
 
-  output = f'{output_folder}/{EXPERIMENT_ID}/'
+  output = os.path.abspath(f'{output_folder}/{EXPERIMENT_ID}')+'/'
 
   helper.createFolder(output)
 
