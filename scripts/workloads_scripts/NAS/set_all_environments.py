@@ -100,7 +100,7 @@ if __name__ == "__main__":
   clients = helper.defineConnection(user, password, hosts)
   
   # Run script 'set_environment.py' for all 'clients'
-  #setAllEnvironments(clients, user, password)
+  setAllEnvironments(clients, user, password)
 
   # Listing Virtual Machines from 'clients' Files
   outputVMList(clients, f'{PROGRAM_PATH}/environments', f'{PROGRAM_PATH}/VM_list.txt')
