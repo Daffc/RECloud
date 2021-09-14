@@ -73,7 +73,7 @@ if __name__ == "__main__":
   # Calling 'top' and 'iptraf-ng' processes.
   cpu_mem = subprocess.Popen([VENV_PATH, f"{PROGRAM_PATH}/cpuMemMonitor.py", "-o", CPU_MEM_OUTPUT_FILE])
   network = subprocess.Popen([f"{PROGRAM_PATH}/iptraf-ng/iptraf-ng", "-i", "all", "-B", "-L", NETWORK_OUTPUT_FILE])
-  tcpdump = subprocess.Popen([f"tcpdump", "-i", "br0", "-s", "96", "-w", TCPDUMP_OUTPUT_FILE])
+  tcpdump = subprocess.Popen([f"tcpdump", "-U", "-i", "br0", "-s", "96", "-w", TCPDUMP_OUTPUT_FILE])
   
   print(f'Monitoring environment with  "cpuMemMonitor.py" (PID=[{cpu_mem.pid}]) and iptraf-ng (PID=[{network.pid}, {network.pid + 1}])...')
   killer = GracefulKiller()
