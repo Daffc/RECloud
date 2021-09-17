@@ -16,7 +16,6 @@ PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 
 DATA_FOLDER_PATH = os.path.normpath(f'{PROGRAM_PATH}/../data')
 CPU_MEM_OUTPUT_FILE = os.path.normpath(f'{DATA_FOLDER_PATH}/cpu_mem_output.txt')
-NETWORK_OUTPUT_FILE = os.path.normpath(f'{DATA_FOLDER_PATH}/network_output.txt')
 TCPDUMP_OUTPUT_FILE = os.path.normpath(f'{DATA_FOLDER_PATH}/network_output.pcap')
 VENV_PATH =  os.path.normpath(f'{PROGRAM_PATH}/../../venv/bin/python3.9')
 
@@ -32,12 +31,12 @@ from sig_helper import GracefulKiller
 #   Local Functions
 #=============================
 # Exclude file in 'path' if it exists.
-def removeNetworkFile(path):
+def removeFile(path: str):
   if os.path.exists(path):
       os.remove(path)
 
 # Check if process with 'pid' has finished.
-def hasProcessEnd(pid):        
+def hasProcessEnd(pid: int):        
     try:
         os.kill(pid, 0)
     except OSError as err:
@@ -47,7 +46,7 @@ def hasProcessEnd(pid):
     return False
 
 # Wait until all subprocesses with pid in 'subprocess id' has finished.
-def waitSubprocessesDie(subprocess_id):
+def waitSubprocessesDie(subprocess_id: list):
   print("Wait for subprocesses to finish...")
   exit_codes = [hasProcessEnd(p) for p in subprocess_id]
   while(not all(exit_codes)):
@@ -67,32 +66,29 @@ if __name__ == "__main__":
   # Creating monitoring folder
   helper.createFolder(DATA_FOLDER_PATH)
 
-  # Removing Network Monitoring file from previous experiments.
-  removeNetworkFile(NETWORK_OUTPUT_FILE)
+  # Removing Monitoring files from previous experiments.
+  removeFile(CPU_MEM_OUTPUT_FILE)
+  removeFile(TCPDUMP_OUTPUT_FILE)
 
-  # Calling 'top' and 'iptraf-ng' processes.
+  # Calling 'cpu_mem' and 'tcpdump' processes.
   cpu_mem = subprocess.Popen([VENV_PATH, f"{PROGRAM_PATH}/cpuMemMonitor.py", "-o", CPU_MEM_OUTPUT_FILE])
-  network = subprocess.Popen([f"{PROGRAM_PATH}/iptraf-ng/iptraf-ng", "-i", "all", "-B", "-L", NETWORK_OUTPUT_FILE])
   tcpdump = subprocess.Popen([f"tcpdump", "-U", "-i", "br0", "-s", "96", "-w", TCPDUMP_OUTPUT_FILE])
   
-  print(f'Monitoring environment with  "cpuMemMonitor.py" (PID=[{cpu_mem.pid}]) and iptraf-ng (PID=[{network.pid}, {network.pid + 1}])...')
+  print(f'Monitoring environment with  "cpuMemMonitor.py" (PID=[{cpu_mem.pid}]) and tcpdump ([{tcpdump.pid}]])...')
   killer = GracefulKiller()
   while not killer.kill_now:
     time.sleep(1)
-  print(f'Killing monitoring processes "cpuMemMonitor.py" (PID=[{cpu_mem.pid}]) and iptraf-ng (PID=[{network.pid}, {network.pid + 1}])...')
+  print(f'Killing monitoring processes "cpuMemMonitor.py" (PID=[{cpu_mem.pid}]) and tcpdump ([{tcpdump.pid}]])...')
   
-  # killing the 'cpuMemMonitor.py' and 'iptraf-ng' processes.
-  #(NOTE) When called, "iptraf-ng" creates two processes, while the first becomes <defunct> the second does the traffic monitoring.
-  os.kill((network.pid + 1), signal.SIGUSR2)
+  # killing the 'cpuMemMonitor.py' and 'tcpdump' processes.
   cpu_mem.terminate()
   tcpdump.terminate()
 
   # Avoiding subprocesses to remain as zombies.
   cpu_mem.communicate()
-  network.communicate()
   tcpdump.communicate()
 
   # Wainting for subprocesses conclusion.
-  waitSubprocessesDie([cpu_mem.pid, (network.pid + 1), tcpdump.pid])
+  waitSubprocessesDie([cpu_mem.pid, tcpdump.pid])
   
   print(f'Exiting monitoring processes halder.')
