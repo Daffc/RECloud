@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+from scapy.all import PcapReader, IP
 from datetime import datetime
 from datetime import timedelta
 import argparse
@@ -14,7 +15,6 @@ import argparse
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 PAJE_HEADER_FILE = f'{PROGRAM_PATH}/header.trace'
 CPU_MEM_TIME_MASK = "%a %b %d %H:%M:%S.%f %Y"
-NETWORK_TIME_MASK = "%a %b %d %H:%M:%S %Y"
 CPU_MEM_START = " ********* Start Monitoring **********\n"
 CPU_MEM_END = " ********* Stopping Monitoring **********\n"
 NETWORK_START = " ******** IP traffic monitor started ********\n"
@@ -51,7 +51,7 @@ def agregatePaths(envs, input_folder, output_folder):
   for host in envs['hosts']:
     host['trace_folder'] = f'{output_folder}/traces/{EXPERIMENT_ID}/{host["hostname"]}'
     host['cpu_mem_source'] = f'{input_folder}/{host["hostname"]}/cpu_mem_output.txt'
-    host['network_source'] = f'{input_folder}/{host["hostname"]}/network_output.txt'
+    host['pcap_source'] = f'{input_folder}/{host["hostname"]}/network_output.pcap'
     for vm in host['virtualMachines']:
       vm['trace_path'] = f'{host["trace_folder"]}/{vm["name"]}.trace'
 
@@ -141,39 +141,31 @@ def tracingCPUMEM(vm, f_input, f_output):
         outputPAJEVariable(tt_seconds, vm["name"], 'CPU', vm_cols[3], f_output)
 
 # Generating NETWORK trace consumption from 'f_input' into 'f_output'
-def tracingNetwork(vm, f_input, vm_list, f_output):
+def tracingPcap(vm, f_input, vm_list, f_output):
 
-  # Checking file first line.
-  line = f_input.readline()
-  line_cols = line.split(';')
-  if(line_cols[1] != NETWORK_START):
-    sys.exit(f"Wrong file format:'{f_input.name}'.")
+  pkt = PcapReader(f_input).next()
 
-  previous_time = datetime.strptime(line_cols[0], NETWORK_TIME_MASK)
+  previous_time = datetime.fromtimestamp(float(pkt.time))
   total_time = timedelta()
 
   links_dict = {}
   
-  for line in f_input.readlines():
-    line_cols = line.split(';')
 
-    # Checking file last line.
-    if(line_cols[1] == NETWORK_END):
-      break
+  for pkt in PcapReader(f_input):
 
-    curr_time, _, nic, size, ori_dest, *_ = line_cols
-    curr_time = datetime.strptime(curr_time, NETWORK_TIME_MASK) 
-    size = size.split()[0]
+    # Check if the current packet (pkt) has an IP protocol header.
+    if(IP in pkt):
 
-    # Check if the entry maches the vm vnic.
-    if(vm["vnic"] == nic.strip()):
+      # Recovering data from packt  
+      curr_time = datetime.fromtimestamp(float(pkt.time))
       total_time += (curr_time - previous_time)
       tt_seconds = total_time.total_seconds()
       previous_time = curr_time
 
-      ori_dest = ori_dest.split()
-      sender = ori_dest[1].split(':')[0]
-      receiver = ori_dest[3].split(':')[0]
+      sender = pkt[IP].src
+      receiver = pkt[IP].dst
+
+      size = pkt.wirelen 
 
       # Check if vm is the sender of the message.
       if(sender == vm["ip"]):
@@ -183,6 +175,7 @@ def tracingNetwork(vm, f_input, vm_list, f_output):
           link = f'{vm["name"]}:{vm_counterpart["name"]}'
           order = links_dict.setdefault(link, 0)
           outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
+          outputPAJEEndLink((tt_seconds),vm_counterpart["name"], size, f'{link}|{order}', f_output)
           links_dict[link] += 1
         # If the conterpart is unknown.
         else:
@@ -193,46 +186,35 @@ def tracingNetwork(vm, f_input, vm_list, f_output):
           links_dict[link] += 1
 
       # Check if vm is the receiver of the message.
-      elif(receiver == vm["ip"]):
+      if(receiver == vm["ip"]):
         vm_counterpart = searchVM(vm_list, "ip", sender) 
-        # Check if the counterpar is another vm from experiment.    
-        if(vm_counterpart):
-          link = f'{vm_counterpart["name"]}:{vm["name"]}'
-          order = links_dict.setdefault(link, 0)
-          outputPAJEEndLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
-          links_dict[link] += 1
-        # If the conterpart is unknown.
-        else:
+        # Check if the counterpar isnt't another vm from experiment (UNKNOWN_HOST).    
+        if(not vm_counterpart):
           link = f'{UNKNOWN_HOST}:{vm["name"]}'
           order = links_dict.setdefault(link, 0)
           outputPAJEStartLink((tt_seconds),UNKNOWN_HOST, size, f'{link}|{order}', f_output)
           outputPAJEEndLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
           links_dict[link] += 1
-      
-      # Report if the vm does not act as sender or receiver.
-      else:
-        print(f"\t\tUncommon Network Communication: '{line.rstrip()}' for '{vm['name']}'.")
 
 # Calling trace generators for each vm into 'host'.
 def generateTraceFiles(host, vm_list):
     
   c_m_in = open(host['cpu_mem_source'], 'r')
-  network_in = open(host['network_source'], 'r')
   
   # PARALELIZATION POINT.
   for vm in host['virtualMachines']:
     print(f'\tGenerating Traces for {vm["name"]}...')
     with open(vm['trace_path'], 'w') as f_output:
       c_m_in.seek(0)
-      network_in.seek(0)
 
       print("# CPU / MEM TRACES", file=f_output)
       tracingCPUMEM(vm, c_m_in, f_output)
-      print("\n# NETWORK TRACES", file=f_output)
-      tracingNetwork(vm, network_in, vm_list, f_output)
+      
+      print("\n# PCAP TRACES", file=f_output)
+      tracingPcap(vm, host['pcap_source'], vm_list, f_output)
+
     print('\tDone!')
   
-  network_in.close()
   c_m_in.close()
 
 # Agrupates the traces into 'root.trace' file (readable by ViTE).
@@ -293,7 +275,7 @@ if __name__ == '__main__':
 
   # Registering input an ouput file paths.
   agregatePaths(envs, input_folder, output_folder)
-  
+
   # Recoverting list of vms.
   vm_list = generateVmList(envs)
 
