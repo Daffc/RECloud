@@ -48,6 +48,7 @@ import helper
 # Inserting into "env" entries input and output data paths for each element.
 def agregatePaths(envs, input_folder, output_folder):
   envs['output_root_trace'] = f'{output_folder}/traces/{EXPERIMENT_ID}/root.trace'
+  envs['unknown_trace'] = f'{output_folder}/traces/{EXPERIMENT_ID}/unknown_host.trace'
   for host in envs['hosts']:
     host['trace_folder'] = f'{output_folder}/traces/{EXPERIMENT_ID}/{host["hostname"]}'
     host['cpu_mem_source'] = f'{input_folder}/{host["hostname"]}/cpu_mem_output.txt'
@@ -141,7 +142,7 @@ def tracingCPUMEM(vm, f_input, f_output):
         outputPAJEVariable(tt_seconds, vm["name"], 'CPU', vm_cols[3], f_output)
 
 # Generating NETWORK trace consumption from 'f_input' into 'f_output'
-def tracingPcap(vm, f_input, vm_list, f_output):
+def tracingPcap(vm, f_input, vm_list, f_output, unk_dsc):
 
   pkt = PcapReader(f_input).next()
 
@@ -151,6 +152,7 @@ def tracingPcap(vm, f_input, vm_list, f_output):
   links_dict = {}
   
 
+  # Looping through each packet (pkt) in pcap file.
   for pkt in PcapReader(f_input):
 
     # Check if the current packet (pkt) has an IP protocol header.
@@ -181,8 +183,8 @@ def tracingPcap(vm, f_input, vm_list, f_output):
         else:
           link = f'{vm["name"]}:{UNKNOWN_HOST}'
           order = links_dict.setdefault(link, 0)
-          outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
-          outputPAJEEndLink((tt_seconds),UNKNOWN_HOST, size, f'{link}|{order}', f_output)
+          outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', unk_dsc)
+          outputPAJEEndLink((tt_seconds),UNKNOWN_HOST, size, f'{link}|{order}', unk_dsc)
           links_dict[link] += 1
 
       # Check if vm is the receiver of the message.
@@ -192,12 +194,12 @@ def tracingPcap(vm, f_input, vm_list, f_output):
         if(not vm_counterpart):
           link = f'{UNKNOWN_HOST}:{vm["name"]}'
           order = links_dict.setdefault(link, 0)
-          outputPAJEStartLink((tt_seconds),UNKNOWN_HOST, size, f'{link}|{order}', f_output)
-          outputPAJEEndLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
+          outputPAJEStartLink((tt_seconds),UNKNOWN_HOST, size, f'{link}|{order}', unk_dsc)
+          outputPAJEEndLink(tt_seconds,vm["name"], size, f'{link}|{order}', unk_dsc)
           links_dict[link] += 1
 
 # Calling trace generators for each vm into 'host'.
-def generateTraceFiles(host, vm_list):
+def generateTraceFiles(host, vm_list, unk_dsc):
     
   c_m_in = open(host['cpu_mem_source'], 'r')
   
@@ -211,7 +213,7 @@ def generateTraceFiles(host, vm_list):
       tracingCPUMEM(vm, c_m_in, f_output)
       
       print("\n# PCAP TRACES", file=f_output)
-      tracingPcap(vm, host['pcap_source'], vm_list, f_output)
+      tracingPcap(vm, host['pcap_source'], vm_list, f_output, unk_dsc)
 
     print('\tDone!')
   
@@ -236,13 +238,18 @@ def agrupateTraces(envs):
         outputPAJEVariable(0.0, vm["name"], 'MEM', 0, r_trace)
         outputPAJEVariable(0.0, vm["name"], 'CPU', 0, r_trace)
                                                                           
-    r_trace.write('\n# ----------------------------------------\n# --- Agragating Virtual MAchines Data ---\n# ----------------------------------------\n')
+    r_trace.write('\n# ----------------------------------------\n# --- Aggregating Virtual Machines Data ---\n# ----------------------------------------\n')
     for host in envs['hosts']:
       for vm in host['virtualMachines']:
         r_trace.write(f'# --- {vm["name"]} ---\n')
         with open(vm['trace_path'], 'r') as vm_trace:
           for line in vm_trace:
             r_trace.write(line)
+    
+    r_trace.write('\n# ----------------------------------------\n# --- Aggregating Unknown Host Communications ---\n# ----------------------------------------\n')
+    with open(envs['unknown_trace'], 'r') as unknown_trace:
+      for line in unknown_trace:
+        r_trace.write(line)
 
     print('Done!')
           
@@ -279,12 +286,16 @@ if __name__ == '__main__':
   # Recoverting list of vms.
   vm_list = generateVmList(envs)
 
-  # PARALELIZATION POINT.
-  for host in envs['hosts']:
-    helper.createFolder(host['trace_folder'])
-    print(f'Generating Traces for {host["hostname"]}...')
-    generateTraceFiles(host, vm_list)
-    print(f'Done!')
+
+  # Defining file output for unknown host communications.
+  with open(envs['unknown_trace'], 'w') as unknown_host_dsc:
+
+    # PARALELIZATION POINT.
+    for host in envs['hosts']:
+      helper.createFolder(host['trace_folder'])
+      print(f'Generating Traces for {host["hostname"]}...')
+      generateTraceFiles(host, vm_list, unknown_host_dsc)
+      print(f'Done!')
 
   # If vizualition trace was selected ('-g' argument.)
   if(root_trace): 
