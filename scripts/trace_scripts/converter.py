@@ -3,11 +3,12 @@
 import json
 import os
 import sys
+from typing import Any
+from io import IOBase
 from scapy.all import PcapReader, IP
 from datetime import datetime
 from datetime import timedelta
 import argparse
-
 
 #=============================
 #   Some General Definitions
@@ -46,7 +47,7 @@ import helper
 #=============================
 
 # Inserting into "env" entries input and output data paths for each element.
-def agregatePaths(envs, input_folder, output_folder):
+def agregatePaths(envs: dict, input_folder: str, output_folder: str):
   envs['output_root_trace'] = f'{output_folder}/traces/{EXPERIMENT_ID}/root.trace'
   envs['unknown_trace'] = f'{output_folder}/traces/{EXPERIMENT_ID}/unknown_host.trace'
   for host in envs['hosts']:
@@ -57,7 +58,7 @@ def agregatePaths(envs, input_folder, output_folder):
       vm['trace_path'] = f'{host["trace_folder"]}/{vm["name"]}.trace'
 
 # Recovering environment data from json to dictionary.
-def recoverEnvironments(path):
+def recoverEnvironments(path: str):
   if(not os.path.isfile(path)):
     sys.exit(f'File {path} does not exist.')
   with open(path, 'r') as envs_file:
@@ -66,14 +67,13 @@ def recoverEnvironments(path):
   return envs
 
 # Checking if folder exists.
-def checkFoldersExistence(path_in, path_out):
-  if(not os.path.isdir(path_in)):
-    sys.exit(f"Folder '{path_in}' does not exists.")
-  if(not os.path.isdir(path_out)):
-    sys.exit(f"Folder '{path_out}' does not exists.")
+def checkFoldersExistence(f_paths: list):
+  for path in f_paths:
+    if(not os.path.isdir(path)):
+      sys.exit(f"Folder '{path}' does not exists.")
 
 # Recovering vm's from 'envs' into a list.
-def generateVmList(envs):
+def generateVmList(envs: dict):
   vm_list = []
 
   for host in envs['hosts']:
@@ -82,7 +82,7 @@ def generateVmList(envs):
   return vm_list
 
 # Recovering vm from 'vm list' if there is a 'key' 'value' match.
-def searchVM(vm_list, key, value):
+def searchVM(vm_list: list, key: str, value: Any):
   vm = []
   for vm_entry in vm_list:  
     if(vm_entry[key] == value):
@@ -91,24 +91,24 @@ def searchVM(vm_list, key, value):
   return vm
 
 # Formatting and outputting 'PajeSetVariable' trace line.
-def outputPAJEVariable(time, vm_name, var_name, var_value, file):
+def outputPAJEVariable(time: float, vm_name: str, var_name: str, var_value: Any, file: IOBase):
   print(PAJE_CODES['PajeSetVariable'], time, vm_name, var_name, var_value, file=file)
 
 # Formating and outputing 'PajeStartLink' trace line.
-def outputPAJEStartLink(time, vm_name, package_size, link_key, file):
+def outputPAJEStartLink(time: float, vm_name: str, package_size: int, link_key: str, file: IOBase):
   print(PAJE_CODES["PajeStartLink"], time, "LINK", "root", vm_name, package_size, link_key, file=file)
 
 # Formating and outputing 'PajeEndLink' trace line.
-def outputPAJEEndLink(time, vm_name, package_size, link_key, file):
+def outputPAJEEndLink(time: float, vm_name: str, package_size: int, link_key: str, file: IOBase):
   print(PAJE_CODES["PajeEndLink"], time, "LINK", "root", vm_name, package_size, link_key, file=file)
 
 # Formating and outputing 'PajeCreateContainer' trace line.
-def outputPAJECreateContainer(time, container_name, container_type, container_parent, file):
+def outputPAJECreateContainer(time: float, container_name: str, container_type: str, container_parent: str, file: IOBase):
   print(PAJE_CODES["PajeCreateContainer"], time, container_name, container_type, container_parent, container_name, file=file)
   
 
 # Generating CPU/MEM trace consumption from 'f_input' into 'f_output'
-def tracingCPUMEM(vm, f_input, f_output):
+def tracingCPUMEM(vm: dict, f_input: IOBase, f_output: IOBase):
   
   # Checking file first line.
   line = f_input.readline()
@@ -141,8 +141,8 @@ def tracingCPUMEM(vm, f_input, f_output):
         outputPAJEVariable(tt_seconds, vm["name"], 'MEM', vm_cols[1], f_output)
         outputPAJEVariable(tt_seconds, vm["name"], 'CPU', vm_cols[3], f_output)
 
-# Generating NETWORK trace consumption from 'f_input' into 'f_output'
-def tracingPcap(vm, f_input, vm_list, f_output, unk_dsc):
+# Generating NETWORK trace traffict from 'f_input' into 'f_output', if vm commuticates with unkow host, output is redirected to 'unk_dsc'
+def tracingPcap(vm: list, f_input: IOBase, vm_list: list, f_output: IOBase, unk_output: IOBase):
 
   pkt = PcapReader(f_input).next()
 
@@ -183,8 +183,8 @@ def tracingPcap(vm, f_input, vm_list, f_output, unk_dsc):
         else:
           link = f'{vm["name"]}:{UNKNOWN_HOST}'
           order = links_dict.setdefault(link, 0)
-          outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', unk_dsc)
-          outputPAJEEndLink((tt_seconds),UNKNOWN_HOST, size, f'{link}|{order}', unk_dsc)
+          outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', unk_output)
+          outputPAJEEndLink((tt_seconds),UNKNOWN_HOST, size, f'{link}|{order}', unk_output)
           links_dict[link] += 1
 
       # Check if vm is the receiver of the message.
@@ -194,12 +194,12 @@ def tracingPcap(vm, f_input, vm_list, f_output, unk_dsc):
         if(not vm_counterpart):
           link = f'{UNKNOWN_HOST}:{vm["name"]}'
           order = links_dict.setdefault(link, 0)
-          outputPAJEStartLink((tt_seconds),UNKNOWN_HOST, size, f'{link}|{order}', unk_dsc)
-          outputPAJEEndLink(tt_seconds,vm["name"], size, f'{link}|{order}', unk_dsc)
+          outputPAJEStartLink((tt_seconds),UNKNOWN_HOST, size, f'{link}|{order}', unk_output)
+          outputPAJEEndLink(tt_seconds,vm["name"], size, f'{link}|{order}', unk_output)
           links_dict[link] += 1
 
 # Calling trace generators for each vm into 'host'.
-def generateTraceFiles(host, vm_list, unk_dsc):
+def generateTraceFiles(host: dict, vm_list: list, unk_output):
     
   c_m_in = open(host['cpu_mem_source'], 'r')
   
@@ -213,14 +213,14 @@ def generateTraceFiles(host, vm_list, unk_dsc):
       tracingCPUMEM(vm, c_m_in, f_output)
       
       print("\n# PCAP TRACES", file=f_output)
-      tracingPcap(vm, host['pcap_source'], vm_list, f_output, unk_dsc)
+      tracingPcap(vm, host['pcap_source'], vm_list, f_output, unk_output)
 
     print('\tDone!')
   
   c_m_in.close()
 
 # Agrupates the traces into 'root.trace' file (readable by ViTE).
-def agrupateTraces(envs):
+def agrupateTraces(envs: dict):
   print(f'Agrupating traces into "root.trace" file (readable by ViTE)...')
 
   with open(envs['output_root_trace'], 'w') as r_trace:
@@ -271,7 +271,7 @@ def parsingArguments():
 if __name__ == '__main__':
 
   input_folder, output_folder, root_trace = parsingArguments()
-  checkFoldersExistence(input_folder, output_folder)
+  checkFoldersExistence([input_folder, output_folder])
 
   # Generating output folders.
   helper.createFolder(f'{output_folder}/traces')
