@@ -61,6 +61,18 @@ def runAllMonitoring(clients, password):
   # clients.run_command('echo '+ password +' | sudo -S -- sh -c ". ~/tg_scripts/venv/bin/activate && ~/tg_scripts/scripts/monitoring_scripts/startMonitoring.py" ')
   clients.run_command(f'echo {password} | sudo -S -- sh -c ". {VENV_PATH} && {MONITOR_PATH}"')
 
+# Calling Chrony to synchonize nodes pointed be 'clients'
+def synchronizeNodes(clients, password):
+  
+  print(f'Setting commands to "Noninteractive"... ', flush=True)
+  RemoteCommand(clients, f'echo "debconf debconf/frontend select Noninteractive" | echo {password} | sudo -S debconf-set-selections', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
+
+  print(f'Synchronizing clock for clients ({clients.hosts})... ', flush=True)
+  RemoteCommand(clients, f'echo {password} | sudo -S -- sh -c "chronyc -a \'burst 4/4\'; chronyc -a makestep "', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
+
+
 # Checking if 'startMonitoring' process has been ended.
 def checkMonitorsEnd(clients):
   saida = clients.run_command(f'pgrep startMonitoring')
@@ -145,6 +157,9 @@ if __name__ == "__main__":
   # Run script 'environment.py' for all 'clients'
   setAllEnvironments(clients, password)
   
+  # Forcing clients Synchronization
+  synchronizeNodes(clients, password)
+
   # Run script 'startMonitoring.py' for all 'clients'
   runAllMonitoring(clients, password)
 
