@@ -31,10 +31,6 @@ from helper import FileType
 
 # Installing NPB dependencies for each VM in 'clients'
 def installDependences(clients, password):
-  
-  print(f'Setting commands to "Noninteractive"... ', flush=True) 
-  RemoteCommand(clients, 'echo "debconf debconf/frontend select Noninteractive" | echo '+ password +' | sudo -S debconf-set-selections', 10, False).remoteCommandHandler()
-  print('OK!', flush=True)
 
   print(f'Updating the package manager (\'apt update\')... ', flush=True)
   RemoteCommand(clients,'echo '+ password +' | sudo -S apt-get update -y', 10, False).remoteCommandHandler()
@@ -50,10 +46,6 @@ def installDependences(clients, password):
   
 # Installing NPB in each VM in 'clients'
 def installNPB(clients, password):
-
-  print(f'Setting commands to "Noninteractive"... ', flush=True)
-  RemoteCommand(clients, 'echo "debconf debconf/frontend select Noninteractive" | echo '+ password +' | sudo -S debconf-set-selections', 10, False).remoteCommandHandler()
-  print('OK!', flush=True)
 
   print(f'Downloading {NPB_VERSION}.tar.gz... ', flush=True)
   RemoteCommand(clients,f'wget \'https://www.nas.nasa.gov/assets/npb/{NPB_VERSION}.tar.gz\'', 10, False).remoteCommandHandler()
@@ -73,9 +65,6 @@ def installNPB(clients, password):
   print('OK!', flush=True)
 
 def setAllEnvironments(clients, password):
-  print(f'Setting commands to "Noninteractive"... ', flush=True)
-  RemoteCommand(clients, f'echo "debconf debconf/frontend select Noninteractive" | echo {password} | sudo -S debconf-set-selections', 10, False).remoteCommandHandler()
-  print('OK!', flush=True)
 
   print(f'Calling \'environment.py\' for all clients ({clients.hosts})... ', flush=True)
   RemoteCommand(clients, f'echo {password} | sudo -S -- sh -c ". {VENV_PATH} && {ENV_EXEC_PATH}"', 10, False).remoteCommandHandler()
@@ -92,6 +81,9 @@ if __name__ == '__main__':
   # Definind Connection with Virtual Machines
   clients = helper.defineConnection(user, password, hosts)
   
+  # Setting client's shell as non-interactive.
+  helper.settingNonItectivity(clients, password)
+
   # Run script 'environment.py' for all 'clients'
   setAllEnvironments(clients, password)
   

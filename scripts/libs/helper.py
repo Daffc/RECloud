@@ -180,3 +180,9 @@ def changeKeyPermissions(clients):
   
   print('OK!', flush=True)
 
+# Changing client's shell as non-iteractive.
+def settingNonItectivity(clients, password):
+  print(f'Setting commands to "Noninteractive"... ', flush=True)
+  RemoteCommand(clients, f'echo "debconf debconf/frontend select Noninteractive" | echo {password} | sudo -S debconf-set-selections', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
+

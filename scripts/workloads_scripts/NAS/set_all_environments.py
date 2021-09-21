@@ -34,9 +34,6 @@ from helper import FileType
 
 # Calling 'set_envirnment.py' for all 'clients'.
 def setAllEnvironments(clients, user, password):
-  print(f'Setting commands to "Noninteractive"... ', flush=True)
-  RemoteCommand(clients, f'echo "debconf debconf/frontend select Noninteractive" | echo {password} | sudo -S debconf-set-selections', 10, False).remoteCommandHandler()
-  print('OK!', flush=True)
 
   print(f'Calling \'environment.py\' for all clients ({clients.hosts})... ', flush=True)
   RemoteCommand(clients, f'echo {password} | sudo -S -- sh -c ". {VENV_PATH} && {ENV_EXEC_PATH}"', 10, False).remoteCommandHandler()
@@ -99,6 +96,9 @@ if __name__ == "__main__":
   # Definind Connection with Virtual Machines
   clients = helper.defineConnection(user, password, hosts)
   
+  # Setting client's shell as non-interactive.
+  helper.settingNonItectivity(clients, password)
+
   # Run script 'set_environment.py' for all 'clients'
   setAllEnvironments(clients, user, password)
 
