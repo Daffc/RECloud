@@ -83,9 +83,10 @@ def defineOutputFile(path):
 def parsingArguments():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description="Program to collect CPU and Memory data from Virtual Machines.\nDisplayed data will follow the schema for each time interval:\n\tTIME; [VM0]; [VM1]; [VM2] ...\nEach [VMN] entry will have the following Information:\n\tVM-NAME VM-MEM-ABS VM-MEM-PERC VM-CPU-PERC.")
     parser.add_argument("-o", default='', required=False, help="Path to output file. If not informed, data will be displayed in stdout.")
+    parser.add_argument("-d", default=0.5, required=False, help="The time interval between sampling the statistics in seconds (Default is 0.5)")
     args = parser.parse_args()
 
-    return args.o
+    return args.o, float(args.d)
 
 #=============================
 #       Main code
@@ -93,7 +94,7 @@ def parsingArguments():
 
 if __name__ == '__main__':
   
-  output_file_path = parsingArguments()
+  output_file_path, sampling_interval = parsingArguments()
 
   f_output = defineOutputFile(output_file_path)  
   domName = socket.gethostname()
@@ -111,7 +112,7 @@ if __name__ == '__main__':
   # Setting initial Values for CPU registers. 
   for dom in doms:
     getCPUConsumption(dom)
-  time.sleep(INTERVAL_SEC)
+  time.sleep(sampling_interval)
 
   print(datetime.now().strftime(TIME_MASK), ' ********* Start Monitoring **********', sep=';', file=f_output)
   while not killer.kill_now:
@@ -123,7 +124,7 @@ if __name__ == '__main__':
       list_vm_data.append(f' {dom.name()} {curMem} {curMemPerc:.2f} {round(percCPU, 2)}')
     
     print(datetime.now().strftime(TIME_MASK), *list_vm_data, sep=';', file=f_output ) 
-    time.sleep(INTERVAL_SEC)
+    time.sleep(sampling_interval)
     
   print(datetime.now().strftime(TIME_MASK),' ********* Stopping Monitoring **********\n', sep=';', file=f_output)
 
