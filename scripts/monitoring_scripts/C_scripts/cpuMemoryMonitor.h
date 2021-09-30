@@ -1,12 +1,23 @@
 #include <libvirt/libvirt.h>
+#include <time.h>
 
 #ifndef __CPUMEMMONIOR__
 #define __CPUMEMMONIOR__
 
+    #define MAXNAME 100
+    
+    // Structure to store each domain of the virtual environment.
+    typedef struct t_Domain{
+        virDomainPtr pointer;
+        virDomainInfo info;
+        struct timespec cpu_Timestamp;
+        char name[MAXNAME];
+    }TDomain;
+
     // Structure to manage all domains of a connection. 
-    typedef struct t_Domains{
-        virDomainPtr *pointer;
+    typedef struct t_DomainsList{
+        TDomain *list;
         int number;
-    }TDomains;
+    }TDomainsList;
 
 #endif
