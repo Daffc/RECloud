@@ -31,6 +31,35 @@ TDomains getActiveDomains(virConnectPtr conn){
     return domains;
 }
 
+void getDomainInfo(virDomainPtr domain){
+    virDomainInfo info;
+    int ret;
+
+    char * name;
+
+    // unsigned char 	state the running state, one of virDomainState
+    // unsigned long 	maxMem 	the maximum memory in KBytes allowed
+    // unsigned long 	memory 	the memory in KBytes used by the domain
+    // unsigned short 	nrVirtCpu 	the number of virtual CPUs for the domain
+    // unsigned long long 	cpuTime 	the CPU time used in nanoseconds
+
+    ret = virDomainGetInfo(domain, &info);
+
+    if(ret < 0){
+        fprintf(stderr, "Failed to recover domain Information.\n");
+        exit(1);
+    }
+
+    name = (char *) virDomainGetName(domain);
+
+    printf("%s\n", name);
+    printf("\tstate: %u\n", info.state);
+    printf("\tmaxMem: %lu\n", info.maxMem);
+    printf("\tmemory: %lu\n", info.memory);
+    printf("\trVirtCpu: %hu\n", info.nrVirtCpu);
+    printf("\tcpuTime: %llu\n", info.cpuTime);
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -42,6 +71,10 @@ int main(int argc, char *argv[])
     
     // Recovering domains number and pointers to structure 'domains'.
     domains = getActiveDomains(conn);
-        
+    
+    // Recovering Domains Information.
+    for(int i = 0; i < domains.number; i ++)
+        getDomainInfo(domains.pointer[i]);
+
     virConnectClose(conn);
 }
