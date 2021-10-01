@@ -9,7 +9,7 @@
     // Structure to store each domain of the virtual environment.
     typedef struct t_Domain{
         virDomainPtr pointer;
-        virDomainInfo info;
+        unsigned long long  cpuTime;
         struct timespec cpu_Timestamp;
         char name[MAXNAME];
     }TDomain;

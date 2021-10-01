@@ -4,6 +4,8 @@
 #include <string.h>
 #include <libvirt/libvirt.h>
 
+#include <unistd.h>
+
 #include "cpuMemoryMonitor.h"
 #include "timeLib.h"
 
@@ -44,11 +46,15 @@ TDomainsList getActiveDomains(virConnectPtr conn){
     return domains;
 }
 
-void getDomainInfo(TDomain domain){
+// Recover domain CPU usage since the last measurement.
+double getDomainCPUUsage(TDomain *domain){
     virDomainInfo info;
+
     struct timespec t_current;
-    int ret;
-    char * name;
+    struct timespec t_diff;
+
+    double percCPU;
+    double d_diff;
 
     // unsigned char 	state the running state, one of virDomainState
     // unsigned long 	maxMem 	the maximum memory in KBytes allowed
@@ -58,31 +64,33 @@ void getDomainInfo(TDomain domain){
 
     // Recovering time of sampling and sampling infomations from domain.
     clock_gettime(CLOCK_REALTIME, &t_current);
-    ret = virDomainGetInfo(domain.pointer, &info);
-    if(ret < 0){
+    if(virDomainGetInfo(domain->pointer, &info) < 0){
         fprintf(stderr, "Failed to recover domain Information.\n");
         exit(1);
-    }
-    
-    // Storing data to the domain structure.
-    domain.info = info;
-    domain.cpu_Timestamp = t_current;
-    
-    printf("%s\n", domain.name);
-    printf("\tstate: %u\n", domain.info.state);
-    printf("\tmaxMem: %lu\n", domain.info.maxMem);
-    printf("\tmemory: %lu\n", domain.info.memory);
-    printf("\trVirtCpu: %hu\n", domain.info.nrVirtCpu);
-    printf("\tcpuTime: %llu\n", domain.info.cpuTime);
-    printf("\t"); print_time(domain.cpu_Timestamp);
+    }    
 
+    // Recovering the difference between the last and current sampling timestamp and converting the difference to double.
+    timespec_enlapse(&t_diff, domain->cpu_Timestamp, t_current);
+    d_diff = timespecToDouble(&t_diff);
+    
+    // Calculating new CPU usage percentage.
+    percCPU = (((info.cpuTime - domain->cpuTime) * 1.0) / (d_diff * 10000000));
+
+    // Storing data to the domain data.
+    domain->cpuTime = info.cpuTime;
+    domain->cpu_Timestamp = t_current;
+
+    // Returning new CPU usage measurement.
+    return percCPU;
 }
 
 
 int main(int argc, char *argv[])
 {
+    struct timespec t_sampling;
     virConnectPtr conn;
     TDomainsList domains;
+
 
     // Establishing connection with qemu.
     conn = libvirtConnect("qemu:///system");
@@ -90,9 +98,30 @@ int main(int argc, char *argv[])
     // Recovering domains number and pointers to structure 'domains'.
     domains = getActiveDomains(conn);
     
+
     // Recovering Domains Information.
-    for(int i = 0; i < domains.number; i ++)
-        getDomainInfo(domains.list[i]);
+    for(int i = 0; i < domains.number; i ++){
+        clock_gettime(CLOCK_REALTIME, &(domains.list[i].cpu_Timestamp));
+        domains.list[i].cpuTime = 0;
+        getDomainCPUUsage(&(domains.list[i]));  
+
+    }
+
+    while(1){
+
+        // Getting and printing samppling time.
+        clock_gettime(CLOCK_REALTIME, &t_sampling);
+        printf("%s\n", stringifyTimespec(t_sampling));
+        
+        // Recovering Domains Information.
+        for(int i = 0; i < domains.number; i ++){
+            printf("\t%s\n", domains.list[i].name);
+            printf("\t\tpercCPU: %.2f\n", getDomainCPUUsage(&(domains.list[i])));
+        }
+
+        // Sleeping
+        usleep(500000);
+    }
 
     virConnectClose(conn);
 }
