@@ -2,12 +2,14 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <signal.h>
 #include <libvirt/libvirt.h>
 
 #include <unistd.h>
 
 #include "cpuMemoryMonitor.h"
 #include "timeLib.h"
+#include "signals.h"
 
 // Attempting to connect with virtual environment informed by 'connection'. 
 virConnectPtr libvirtConnect(const char * connection){
@@ -121,6 +123,7 @@ int main(int argc, char *argv[])
     struct timespec t_sampling;
     virConnectPtr conn;
     TDomainsList domains;
+    volatile sig_atomic_t * exit;
 
 
     // Establishing connection with qemu.
@@ -136,7 +139,11 @@ int main(int argc, char *argv[])
 
     }
 
-    while(1){
+    // Recover pointer to SIGTER signal handler.
+    exit =  startGracefullExiting();
+
+    // Stops loop when receive SIGTER.
+    while(!(*exit)){
 
         // Sampling current time.
         clock_gettime(CLOCK_REALTIME, &t_sampling);

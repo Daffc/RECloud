@@ -6,7 +6,7 @@ LDLIBS := -lvirt
 
 EXEC :=  cpuMemoryMonitor
 
-cpuMemoryMonitor: cpuMemoryMonitor.c timeLib.c
+cpuMemoryMonitor: cpuMemoryMonitor.c timeLib.c signals.c
 
 all: cpuMemoryMonitor
 
