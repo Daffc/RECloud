@@ -47,7 +47,7 @@ def stopAllBalloonPeriods(doms):
 
 def getMemConsumption(dom):
   stats  = dom.memoryStats()
-  totalMem = stats.get("actual", 1)
+  totalMem = stats.get("available", 1)
   curMem = max(0, totalMem - stats.get("unused", totalMem))
 
   curMemPercent = (curMem / float(totalMem)) * 100
