@@ -47,7 +47,7 @@ TDomainsList getActiveDomains(virConnectPtr conn){
 }
 
 // Recover domain CPU usage since the last measurement.
-double getDomainCPUUsage(TDomain *domain){
+void getDomainCPUUsage(TDomain *domain){
     virDomainInfo info;
 
     struct timespec t_current;
@@ -55,12 +55,6 @@ double getDomainCPUUsage(TDomain *domain){
 
     double percCPU;
     double d_diff;
-
-    // unsigned char 	state the running state, one of virDomainState
-    // unsigned long 	maxMem 	the maximum memory in KBytes allowed
-    // unsigned long 	memory 	the memory in KBytes used by the domain
-    // unsigned short 	nrVirtCpu 	the number of virtual CPUs for the domain
-    // unsigned long long 	cpuTime 	the CPU time used in nanoseconds
 
     // Recovering time of sampling and sampling infomations from domain.
     clock_gettime(CLOCK_REALTIME, &t_current);
@@ -79,11 +73,40 @@ double getDomainCPUUsage(TDomain *domain){
     // Storing data to the domain data.
     domain->cpuTime = info.cpuTime;
     domain->cpu_Timestamp = t_current;
-
-    // Returning new CPU usage measurement.
-    return percCPU;
+    
+    // Returning new CPU usage measurement in domain structure.
+    domain->cpu_perc = percCPU;
 }
 
+void getDomainMemUsage(TDomain *domain){
+    virDomainMemoryStatStruct mem_stats[VIR_DOMAIN_MEMORY_STAT_NR];
+    int n_mem_stats;
+    unsigned long long unused, actual, used;
+
+    // Recover All Memory Stats for domain.
+    n_mem_stats = virDomainMemoryStats(domain->pointer, mem_stats, VIR_DOMAIN_MEMORY_STAT_NR, 0);
+    if(n_mem_stats < 0){
+        fprintf(stderr, "Failed to recover domain Memory Stats.\n");
+        exit(1);
+    }    
+
+    // Iterating throught all returned memory status, looking for current 
+    // unused memory (tag  = VIR_DOMAIN_MEMORY_STAT_UNUSED) and total 
+    // available memory by the domain perspective (tag =VIR_DOMAIN_MEMORY_STAT_AVAILABLE). 
+    for(int j = 0; j <  n_mem_stats; j++){
+        if (mem_stats[j].tag == VIR_DOMAIN_MEMORY_STAT_UNUSED)
+            unused = mem_stats[j].val;
+        if (mem_stats[j].tag == VIR_DOMAIN_MEMORY_STAT_AVAILABLE)
+            actual = mem_stats[j].val;
+    }
+
+    // Calculating Used Memory (Available - (Used + Cached)).
+    used = actual - unused;
+
+    // Updating domain structure valuer for memory in yse (used + cached)
+    domain->used_mem = used;
+    domain->used_mem_perc = (used * 1.0 / actual) * 100;
+}
 
 int main(int argc, char *argv[])
 {
@@ -97,7 +120,7 @@ int main(int argc, char *argv[])
     
     // Recovering domains number and pointers to structure 'domains'.
     domains = getActiveDomains(conn);
-    
+
 
     // Recovering Domains Information.
     for(int i = 0; i < domains.number; i ++){
@@ -109,15 +132,27 @@ int main(int argc, char *argv[])
 
     while(1){
 
-        // Getting and printing samppling time.
+        // Sampling current time.
         clock_gettime(CLOCK_REALTIME, &t_sampling);
-        printf("%s\n", stringifyTimespec(t_sampling));
         
         // Recovering Domains Information.
         for(int i = 0; i < domains.number; i ++){
-            printf("\t%s\n", domains.list[i].name);
-            printf("\t\tpercCPU: %.2f\n", getDomainCPUUsage(&(domains.list[i])));
+            getDomainCPUUsage(&(domains.list[i]));
+            getDomainMemUsage(&(domains.list[i]));
         }
+
+        // Printing sampling time.
+        printf("%s", stringifyTimespec(t_sampling));
+        
+        // For all domains, dusplay statistics.
+        for(int i = 0; i < domains.number; i ++){
+            printf("; %s", domains.list[i].name);               // Domain name.
+            printf(" %llu", domains.list[i].used_mem);          // Domain used memory (used + cached in KB).
+            printf(" %3.2f", domains.list[i].used_mem_perc);    // Domain used memory percentage (used + cached).
+            printf(" %3.2f", domains.list[i].cpu_perc);         // Domain used memory percentage.
+        }
+        printf("\n");
+
 
         // Sleeping
         usleep(500000);
