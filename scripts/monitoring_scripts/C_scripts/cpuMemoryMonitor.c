@@ -59,7 +59,7 @@ void getDomainCPUUsage(TDomain *domain){
     // Recovering time of sampling and sampling infomations from domain.
     clock_gettime(CLOCK_REALTIME, &t_current);
     if(virDomainGetInfo(domain->pointer, &info) < 0){
-        fprintf(stderr, "Failed to recover domain Information.\n");
+        fprintf(stderr, "Failed to recover domain Information (%s).\n", domain->name);
         exit(1);
     }    
 
@@ -86,7 +86,7 @@ void getDomainMemUsage(TDomain *domain){
     // Recover All Memory Stats for domain.
     n_mem_stats = virDomainMemoryStats(domain->pointer, mem_stats, VIR_DOMAIN_MEMORY_STAT_NR, 0);
     if(n_mem_stats < 0){
-        fprintf(stderr, "Failed to recover domain Memory Stats.\n");
+        fprintf(stderr, "Failed to recover domain Memory Stats (%s).\n", domain->name);
         exit(1);
     }    
 
@@ -108,6 +108,14 @@ void getDomainMemUsage(TDomain *domain){
     domain->used_mem_perc = (used * 1.0 / actual) * 100;
 }
 
+// Setting Baloon Period dor domain represented by in 'domain'.
+void setBalloonPeriod(TDomain *domain, int period){
+    if(virDomainSetMemoryStatsPeriod(domain->pointer, period, VIR_DOMAIN_AFFECT_LIVE) < 0){
+        fprintf(stderr, "Failed to set domain's Balloon period (%s).\n", domain->name);
+        exit(1);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     struct timespec t_sampling;
@@ -121,12 +129,10 @@ int main(int argc, char *argv[])
     // Recovering domains number and pointers to structure 'domains'.
     domains = getActiveDomains(conn);
 
-
-    // Recovering Domains Information.
+    // Preparing Domains and gatterind ilitializin information.
     for(int i = 0; i < domains.number; i ++){
-        clock_gettime(CLOCK_REALTIME, &(domains.list[i].cpu_Timestamp));
-        domains.list[i].cpuTime = 0;
-        getDomainCPUUsage(&(domains.list[i]));  
+        setBalloonPeriod(&(domains.list[i]), 1);    // Setting Balloon Period (Memory Monitoring)
+        getDomainCPUUsage(&(domains.list[i]));      // Recover initial CPU measurements ( cpuTime, and cpu_Timestamp).
 
     }
 
@@ -153,9 +159,13 @@ int main(int argc, char *argv[])
         }
         printf("\n");
 
-
         // Sleeping
         usleep(500000);
+    }
+
+    // Deactivatind Balloon for all domains.
+    for(int i = 0; i < domains.number; i ++){
+        setBalloonPeriod(&(domains.list[i]), 0);
     }
 
     virConnectClose(conn);
