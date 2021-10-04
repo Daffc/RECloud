@@ -11,6 +11,9 @@
         virDomainPtr pointer;
         unsigned long long  cpuTime;
         struct timespec cpu_Timestamp;
+        double cpu_perc;
+        unsigned long long used_mem;
+        double used_mem_perc;
         char name[MAXNAME];
     }TDomain;
 
