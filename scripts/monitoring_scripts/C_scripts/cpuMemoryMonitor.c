@@ -66,7 +66,7 @@ void getDomainCPUUsage(TDomain *domain){
     }    
 
     // Recovering the difference between the last and current sampling timestamp and converting the difference to double.
-    timespec_enlapse(&t_diff, domain->cpu_Timestamp, t_current);
+    timespecElapsed(&t_diff, domain->cpu_Timestamp, t_current);
     d_diff = timespecToDouble(&t_diff);
     
     // Calculating new CPU usage percentage.
@@ -120,11 +120,21 @@ void setBalloonPeriod(TDomain *domain, int period){
 
 int main(int argc, char *argv[])
 {
-    struct timespec t_sampling;
+    struct timespec ts_sampling;
     virConnectPtr conn;
     TDomainsList domains;
     volatile sig_atomic_t * exit;
 
+    double db_delay;
+    double db_acc;
+    struct timespec interval;
+    struct timespec ts_prev;
+
+
+    // Initiating time control variables.
+    db_acc = 0;                                 // The variable that accumulates error between sampling rounds.
+    db_delay = 0.5;                             // The desirable delay between sampling rounds.
+    interval = doubleToTimespec(&db_delay);     // The Timespec representation of delay between sampling intervals.
 
     // Establishing connection with qemu.
     conn = libvirtConnect("qemu:///system");
@@ -135,19 +145,22 @@ int main(int argc, char *argv[])
     // Preparing Domains and gatterind ilitializin information.
     for(int i = 0; i < domains.number; i ++){
         setBalloonPeriod(&(domains.list[i]), 1);    // Setting Balloon Period (Memory Monitoring)
-        getDomainCPUUsage(&(domains.list[i]));      // Recover initial CPU measurements ( cpuTime, and cpu_Timestamp).
-
+        getDomainCPUUsage(&(domains.list[i]));      // Recover initial CPU measurements (cpuTime, and cpu_Timestamp).
     }
 
     // Recover pointer to SIGTER signal handler.
     exit =  startGracefullExiting();
 
+    // Initializing variable to calculate elapsed time.
+    clock_gettime(CLOCK_REALTIME, &ts_prev);
+    nanosleep(&interval , &interval);
+
     // Stops loop when receive SIGTER.
     while(!(*exit)){
 
         // Sampling current time.
-        clock_gettime(CLOCK_REALTIME, &t_sampling);
-        
+        clock_gettime(CLOCK_REALTIME, &ts_sampling);
+
         // Recovering Domains Information.
         for(int i = 0; i < domains.number; i ++){
             getDomainCPUUsage(&(domains.list[i]));
@@ -155,7 +168,7 @@ int main(int argc, char *argv[])
         }
 
         // Printing sampling time.
-        printf("%s", stringifyTimespec(t_sampling));
+        printf("%s", stringifyTimespec(ts_sampling));
         
         // For all domains, dusplay statistics.
         for(int i = 0; i < domains.number; i ++){
@@ -166,8 +179,14 @@ int main(int argc, char *argv[])
         }
         printf("\n");
 
+        // Calculating new adusted interval.
+        interval = calculateNextInterval(ts_sampling, ts_prev, db_delay, &db_acc);
+
+        // Updating value of previous time measured (ts_prev).
+        ts_prev = ts_sampling;
+        
         // Sleeping
-        usleep(500000);
+        nanosleep(&interval , &interval);
     }
 
     // Deactivatind Balloon for all domains.
@@ -175,5 +194,6 @@ int main(int argc, char *argv[])
         setBalloonPeriod(&(domains.list[i]), 0);
     }
 
+    // Closing connection with the virtualizer.
     virConnectClose(conn);
 }
