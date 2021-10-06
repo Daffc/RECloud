@@ -106,7 +106,6 @@ struct timespec calculateNextInterval(struct timespec ts_actual, struct timespec
 
     // Adding error to the error accumulator.
     *db_acc += db_err;
-    printf("db_acc: %.9f\n", *db_acc);
 
     // Applying accumulated error to the desired interval, defining the new time interval.
     db_interval = db_delay + (*db_acc);
