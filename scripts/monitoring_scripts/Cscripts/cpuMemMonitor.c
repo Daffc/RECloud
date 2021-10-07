@@ -242,7 +242,7 @@ int main(int argc, char *argv[])
 
     // Sampling current time.
     clock_gettime(CLOCK_REALTIME, &ts_sampling);
-    fprintf(output, "%s;  ********* Start Monitoring **********\n", stringifyTimespec(ts_sampling));
+    fprintf(output, "%s; ********* Start Monitoring **********\n", stringifyTimespec(ts_sampling));
 
     // Stops loop when receive SIGTER.
     while(!(*terminate)){
@@ -278,7 +278,7 @@ int main(int argc, char *argv[])
         nanosleep(&ts_interval , &ts_interval);
     }
     clock_gettime(CLOCK_REALTIME, &ts_sampling);
-    fprintf(output, "%s;  ********* Stopping Monitoring **********\n", stringifyTimespec(ts_sampling));
+    fprintf(output, "%s; ********* Stopping Monitoring **********\n", stringifyTimespec(ts_sampling));
 
     // Deactivatind Balloon for all domains.
     for(int i = 0; i < domains.number; i ++){
