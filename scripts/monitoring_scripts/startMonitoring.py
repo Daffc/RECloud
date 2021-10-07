@@ -71,16 +71,16 @@ if __name__ == "__main__":
   removeFile(TCPDUMP_OUTPUT_FILE)
 
   # Calling 'cpu_mem' and 'tcpdump' processes.
-  cpu_mem = subprocess.Popen([VENV_PATH, f"{PROGRAM_PATH}/cpuMemMonitor.py", "-o", CPU_MEM_OUTPUT_FILE])
+  cpu_mem = subprocess.Popen([f"{PROGRAM_PATH}/Cscripts/cpuMemMonitor", "-o", CPU_MEM_OUTPUT_FILE])
   tcpdump = subprocess.Popen([f"tcpdump", "-U", "-i", "br0", "-s", "96", "-w", TCPDUMP_OUTPUT_FILE])
   
-  print(f'Monitoring environment with  "cpuMemMonitor.py" (PID=[{cpu_mem.pid}]) and tcpdump ([{tcpdump.pid}]])...')
+  print(f'Monitoring environment with  cpuMemMonitor (PID=[{cpu_mem.pid}]) and tcpdump ([{tcpdump.pid}]])...')
   killer = GracefulKiller()
   while not killer.kill_now:
     time.sleep(1)
-  print(f'Killing monitoring processes "cpuMemMonitor.py" (PID=[{cpu_mem.pid}]) and tcpdump ([{tcpdump.pid}]])...')
+  print(f'Killing monitoring processes cpuMemMonitor (PID=[{cpu_mem.pid}]) and tcpdump ([{tcpdump.pid}]])...')
   
-  # killing the 'cpuMemMonitor.py' and 'tcpdump' processes.
+  # killing the 'cpuMemMonitor' and 'tcpdump' processes.
   cpu_mem.terminate()
   tcpdump.terminate()
 
