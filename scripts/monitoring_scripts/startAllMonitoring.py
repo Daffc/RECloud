@@ -18,6 +18,7 @@ EXPERIMENT_ID = f'experiment_{datetime.now().strftime("%d-%m-%Y_%H:%M:%S")}'
 
 VENV_PATH = os.path.normpath(f'{PROGRAM_PATH}/../../venv/bin/activate')
 ENV_EXEC_PATH = os.path.normpath(f'{PROGRAM_PATH}/../environment_scripts/environment.py')
+COMPILE_PATH = os.path.normpath(f'{PROGRAM_PATH}/Cscripts')
 MONITOR_PATH = os.path.normpath(f'{PROGRAM_PATH}/startMonitoring.py')
 DATA_PATH = os.path.normpath(f'{PROGRAM_PATH}/../data')
 
@@ -44,6 +45,11 @@ def setAllEnvironments(clients, password):
 
   print(f'Calling \'environment.py\' for all clients ({clients.hosts})... ', flush=True)
   RemoteCommand(clients, f'echo {password} | sudo -S -- sh -c ". {VENV_PATH} && {ENV_EXEC_PATH}"', 10, False).remoteCommandHandler()
+  print('OK!', flush=True)
+
+  # Compiling 'cpuMemMonitor' scripts.
+  print(f'Compiling "cpuMemMonitor" for all remote nodes ({COMPILE_PATH})... ')
+  RemoteCommand(clients, f"make -C {COMPILE_PATH}", 10, False).remoteCommandHandler()
   print('OK!', flush=True)
 
 # Initiates the monitoring processes for all 'clients' machines.
