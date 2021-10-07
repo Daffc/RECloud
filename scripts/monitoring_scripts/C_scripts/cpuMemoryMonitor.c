@@ -46,7 +46,10 @@ TDomainsList getActiveDomains(virConnectPtr conn){
     for(i = 0; i< domains.number; i++){
         domains.list[i].pointer = domains_pointers[i];
         strcpy (domains.list[i].name, virDomainGetName(domains.list[i].pointer));
-    } 
+    }
+
+    // Freeing list of pointers to domains.
+    free(domains_pointers);
 
     return domains;
 }
@@ -275,6 +278,12 @@ int main(int argc, char *argv[])
     for(int i = 0; i < domains.number; i ++){
         setBalloonPeriod(&(domains.list[i]), 0);
     }
+
+    // Freeing domains pointers and structures.
+    for(int i = 0; i < domains.number; i ++){
+        virDomainFree(domains.list[i].pointer);
+    }
+    free(domains.list);
 
     // Closing connection with the virtualizer.
     virConnectClose(conn);
