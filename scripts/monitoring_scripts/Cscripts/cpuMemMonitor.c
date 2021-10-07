@@ -6,7 +6,7 @@
 #include <libvirt/libvirt.h>
 #include <ctype.h>
 
-#include "cpuMemoryMonitor.h"
+#include "cpuMemMonitor.h"
 #include "timeLib.h"
 #include "signals.h"
 

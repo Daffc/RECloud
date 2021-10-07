@@ -4,11 +4,11 @@ LDLIBS := -lvirt
 .DEFAULT_GOAL := all
 .PHONY := install all clean purge
 
-EXEC :=  cpuMemoryMonitor
+EXEC :=  cpuMemMonitor
 
-cpuMemoryMonitor: cpuMemoryMonitor.c timeLib.c signals.c
+cpuMemMonitor: cpuMemMonitor.c timeLib.c signals.c
 
-all: cpuMemoryMonitor
+all: cpuMemMonitor
 
 clean:
 	-rm -f *.o 
