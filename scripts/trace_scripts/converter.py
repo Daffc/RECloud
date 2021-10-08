@@ -15,7 +15,7 @@ import argparse
 #=============================
 PROGRAM_PATH = os.path.dirname(os.path.abspath(__file__))
 PAJE_HEADER_FILE = f'{PROGRAM_PATH}/header.trace'
-CPU_MEM_TIME_MASK = "%a %b %d %H:%M:%S.%f %Y"
+CPU_MEM_TIME_MASK = "%a %Y-%m-%d %H:%M:%S.%f"                     
 CPU_MEM_START = " ********* Start Monitoring **********\n"
 CPU_MEM_END = " ********* Stopping Monitoring **********\n"
 NETWORK_START = " ******** IP traffic monitor started ********\n"
@@ -117,7 +117,7 @@ def tracingCPUMEM(vm: dict, f_input: IOBase, f_output: IOBase):
   if(line_cols[1] != CPU_MEM_START):
     sys.exit(f"Wrong file format:'{f_input.name}'.")
 
-  previous_time = datetime.strptime(line_cols[0], CPU_MEM_TIME_MASK)
+  previous_time = datetime.strptime(line_cols[0][0:30], CPU_MEM_TIME_MASK)
   total_time = timedelta()
   
   for line in f_input.readlines():
@@ -126,8 +126,8 @@ def tracingCPUMEM(vm: dict, f_input: IOBase, f_output: IOBase):
     # Checking file last line.
     if(line_cols[1] == CPU_MEM_END):
       break
-
-    curr_time = datetime.strptime(line_cols[0], CPU_MEM_TIME_MASK)
+    
+    curr_time = datetime.strptime(line_cols[0][0:30], CPU_MEM_TIME_MASK)
     total_time += (curr_time - previous_time)
     tt_seconds = total_time.total_seconds()
     previous_time = curr_time
