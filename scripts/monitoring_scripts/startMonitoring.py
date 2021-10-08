@@ -84,9 +84,9 @@ if __name__ == "__main__":
   removeFile(CPU_MEM_OUTPUT_FILE)
   removeFile(TCPDUMP_OUTPUT_FILE)
 
-  # Calling 'cpu_mem' and 'tcpdump' processes.
-  cpu_mem = subprocess.Popen([f"{PROGRAM_PATH}/Cscripts/cpuMemMonitor", "-o", CPU_MEM_OUTPUT_FILE, "-d", sampling_delay])
-  tcpdump = subprocess.Popen([f"tcpdump", "-U", "-i", "br0", "-s", "96", "-w", TCPDUMP_OUTPUT_FILE])
+  # Calling 'cpu_mem' and 'tcpdump' processes, defining highest priority (-20).
+  cpu_mem = subprocess.Popen([f"{PROGRAM_PATH}/Cscripts/cpuMemMonitor", "-o", CPU_MEM_OUTPUT_FILE, "-d", str(sampling_delay)], preexec_fn=lambda : os.nice(-20))
+  tcpdump = subprocess.Popen([f"tcpdump", "-U", "-i", "br0", "-s", "96", "-w", TCPDUMP_OUTPUT_FILE], preexec_fn=lambda : os.nice(-20))
 
   print(f'Monitoring environment with  cpuMemMonitor (PID=[{cpu_mem.pid}]) and tcpdump ([{tcpdump.pid}]])...')
   killer = GracefulKiller()
