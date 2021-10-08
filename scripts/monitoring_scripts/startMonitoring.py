@@ -7,6 +7,7 @@ import signal
 import errno
 import subprocess
 import setproctitle
+import argparse
 
 #=============================
 #   Some General Definitions
@@ -53,6 +54,16 @@ def waitSubprocessesDie(subprocess_id: list):
     time.sleep(1)
     exit_codes = [hasProcessEnd(p) for p in subprocess_id]
   print("Done!")
+
+
+# Parsing program initialization arguments. 
+def parsingArguments():
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description="program to manage Networn (tcpdump), and CPU and Memory (CpuMemMonitor) processes.")
+    parser.add_argument("-d", default=0.5, required=False, help="The time interval between sampling the CPU and Moemory statistics in seconds (must bee between 5 and 0.05, default is 0.5)")
+    args = parser.parse_args()
+
+    return float(args.d)
+
 #=============================
 #       Main code
 #=============================
@@ -63,6 +74,9 @@ if __name__ == "__main__":
     print("Please run this script with sudo privileges.")
     exit(1)
 
+  # Defining delay between CPU and memory samplings.
+  sampling_delay = parsingArguments()
+
   # Creating monitoring folder
   helper.createFolder(DATA_FOLDER_PATH)
 
@@ -71,13 +85,15 @@ if __name__ == "__main__":
   removeFile(TCPDUMP_OUTPUT_FILE)
 
   # Calling 'cpu_mem' and 'tcpdump' processes.
-  cpu_mem = subprocess.Popen([f"{PROGRAM_PATH}/Cscripts/cpuMemMonitor", "-o", CPU_MEM_OUTPUT_FILE])
+  cpu_mem = subprocess.Popen([f"{PROGRAM_PATH}/Cscripts/cpuMemMonitor", "-o", CPU_MEM_OUTPUT_FILE, "-d", sampling_delay])
   tcpdump = subprocess.Popen([f"tcpdump", "-U", "-i", "br0", "-s", "96", "-w", TCPDUMP_OUTPUT_FILE])
-  
+
   print(f'Monitoring environment with  cpuMemMonitor (PID=[{cpu_mem.pid}]) and tcpdump ([{tcpdump.pid}]])...')
   killer = GracefulKiller()
+
   while not killer.kill_now:
     time.sleep(1)
+
   print(f'Killing monitoring processes cpuMemMonitor (PID=[{cpu_mem.pid}]) and tcpdump ([{tcpdump.pid}]])...')
   
   # killing the 'cpuMemMonitor' and 'tcpdump' processes.
