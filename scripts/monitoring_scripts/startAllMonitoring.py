@@ -69,24 +69,34 @@ def synchronizeNodes(clients, password):
 
 # Checking if 'startMonitoring' process has been ended.
 def checkMonitorsEnd(clients):
+  
+  # List to store the name of hosts where 'startMonitoring' still running.
+  unfinished_hosts = []
+
   saida = clients.run_command(f'pgrep startMonitoring')
   for host_out in saida:
     for line in host_out.stdout:
       if(line):
-        print(f'\t[{host_out.host}] Process "startMonitoring" (PID={line}) not finished, waiting {WAIT_END_INTERVAL} seconds and trying again...', flush=True)
-        return False
-  
-  return True
+        unfinished_hosts.append(host_out.host)
+
+  return unfinished_hosts
 
 # Kill the 'startMonitoring.py' processes for all 'clients' machines.
 def killMonitoringProcesses(clients, password):
   print(f'Killing processes in clients {clients.hosts}...', flush=True)
   RemoteCommand(clients,'echo '+ password +' | sudo -S killall startMonitoring', 10, False).remoteCommandHandler()
 
-  monitors_ended = checkMonitorsEnd(clients)  
-  while(not monitors_ended):
+  # Recover the list of hosts where 'startMonitoring' is still running.
+  unfinished_hosts = checkMonitorsEnd(clients)  
+
+  # If there are still hoss running 'startMonitoring', wait until the process is finished.
+  while(unfinished_hosts):
+
+    for host_name in unfinished_hosts:
+      print(f'\t[{host_name}] Process "startMonitoring" not finished, waiting {WAIT_END_INTERVAL} seconds and trying again...', flush=True)
+
     time.sleep(WAIT_END_INTERVAL)
-    monitors_ended = checkMonitorsEnd(clients)
+    unfinished_hosts = checkMonitorsEnd(clients)
 
   print('OK!', flush=True)
 
@@ -161,10 +171,24 @@ if __name__ == "__main__":
   runAllMonitoring(clients, password)
 
   # Waiting for user input in order to stop monitoring process for all the 'client' machines
-  print(f'\'CTRL+C\' or kill this process in order to stop all the monitorinment processes.')
+  print(f'\'CTRL+C\' or kill this process to stop all the monitoring processes.')
   killer = GracefulKiller()
   while not killer.kill_now:
+
     time.sleep(1)
+
+    # Recover all hosts where "startMonitoring" still running.
+    unfinished_hosts = checkMonitorsEnd(clients)
+
+    # Defining hosts where "startMonitoring" stopped running.
+    finished_hosts = list(set(clients.hosts) - set(unfinished_hosts))
+    
+    # If any of the hosts is not executing "startMonitoring", print the error message and finish processes.
+    if finished_hosts:
+      for host_name in finished_hosts:
+        print(f'ERROR: Process "startMonitoring" is not running for host [{host_name}]. Finishing monitoring processes.',  flush=True)
+
+      break;   
 
   # Killing monitoring processes for all the 
   killMonitoringProcesses(clients, password)
