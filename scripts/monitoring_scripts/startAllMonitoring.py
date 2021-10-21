@@ -49,6 +49,7 @@ def setAllEnvironments(clients, password):
 
   # Compiling 'cpuMemMonitor' scripts.
   print(f'Compiling "cpuMemMonitor" for all remote nodes ({COMPILE_PATH})... ')
+  RemoteCommand(clients, f"make purge -C {COMPILE_PATH}", 10, False).remoteCommandHandler()
   RemoteCommand(clients, f"make -C {COMPILE_PATH}", 10, False).remoteCommandHandler()
   print('OK!', flush=True)
 
