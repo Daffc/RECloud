@@ -2,42 +2,42 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define PajeSetVariable         "8"
-#define PajeStartLink           "14"
-#define PajeEndLink             "15"
+#include "treaceReader.h" 
 
 // Updates 'file' pointer until it points to the first occurrence of 'PajeSet Variable', meaning, the first trace of the Memory and CPU tuple.
 int preparePointerCPUMem(FILE *file){
-    char code[3];
+    char *code;
 
     char *line;
     size_t line_len;
     ssize_t read;
 
     line = NULL;
+
     
-    // Looking for the line which initiates with 'PajeSetVariable' code.
+    // Looking for the line which initiates with 'PAJESETVARIABLE' code.
     do{
         read = getline(&line, &line_len, file);
-        sscanf(line, "%s", code);
+        code = strtok(line," ");  
     }
-    while (strcmp(code, PajeSetVariable) != 0 && read != EOF);
+    while (strcmp(code, PAJESETVARIABLE) != 0 && read != EOF);
+
+    // Freeing line;
+    free(line);
+
+    // If the end of file, return 0 (PAJESETVARIABLE not found).
+    if(read == EOF){
+        return 0;
+    }
 
     // Returning 'file' to the beginning of the line.
     fseek(file, -read, SEEK_CUR);
     
-    // Freeing line;
-    free(line);
-
-    // If the end of file, return 0 (PajeSetVariable not found).
-    if(read == EOF)
-        return 0;
-    
-    // Else return that 'PajeSetVariable' was found.
+    // Else return that 'PAJESETVARIABLE' was found.
     return 1;
 }
 
-// Receiving the 'file' pointer, read the next line, looking for code 'PajeSetVariable', if it matches, recovers timestamp, memory in bytes, and CPU usage.
+// Receiving the 'file' pointer, read the next line, looking for code 'PAJESETVARIABLE', if it matches, recovers timestamp, memory in bytes, and CPU usage.
 int followCPUMem(FILE *file, double *timestamp, unsigned int *mem_bytes, float *cpu_perc){
     char *code;
 
@@ -53,8 +53,9 @@ int followCPUMem(FILE *file, double *timestamp, unsigned int *mem_bytes, float *
     // Recovering PAJE code of the line.
     code = strtok (line," ");
 
-    // If code does not correspond to 'PajeSetVariable' (meaning CPU usage), return.
-    if(strcmp(code, PajeSetVariable) != 0 || read == EOF){
+    // If code does not correspond to 'PAJESETVARIABLE' (meaning CPU usage), return.
+    if(strcmp(code, PAJESETVARIABLE) != 0 || read == EOF){
+        free(line);
         return 0;
     }
 
@@ -66,7 +67,7 @@ int followCPUMem(FILE *file, double *timestamp, unsigned int *mem_bytes, float *
 
     // Reading next line (CPU variable for same timestamp.)
     read = getline(&line, &line_len, file);
-    strtok(line," ");                                   // Skipping 'PajeSetVariable' code.
+    strtok(line," ");                                   // Skipping 'PAJESETVARIABLE' code.
     strtok(NULL," ");                                   // Skipping timestamp (same of previous MEM entry).
     strtok(NULL," ");                                   // Skipping vm name.
     strtok(NULL," ");                                   // Skipping 'CPU' labe
@@ -75,29 +76,4 @@ int followCPUMem(FILE *file, double *timestamp, unsigned int *mem_bytes, float *
     free(line);
     
     return 1;
-}
-
-int main(){
-    FILE *f_trace;
-
-    f_trace = fopen("/home/dac17/experiment/traces/21-10-2021_12:59/mojito1/testvm1-1.trace","r");
-
-    if (f_trace == NULL){
-        printf("ERRO DE LEITURA\n");
-        exit(1);
-    }
-
-    if(!preparePointerCPUMem(f_trace)){
-        fprintf(stderr, "ERROR: CPU and/ or Memory Trace was not found.\n");
-    }
-
-    double timestamp;
-    unsigned int mem_bytes;
-    float cpu_perc;
-
-    while(followCPUMem(f_trace, &timestamp, &mem_bytes, &cpu_perc)){
-        printf("%lf, %u, %f\n", timestamp, mem_bytes, cpu_perc);
-    }
-
-    fclose(f_trace);
 }
