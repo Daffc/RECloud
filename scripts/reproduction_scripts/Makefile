@@ -6,7 +6,7 @@ LDLIBS := -pthread
 
 EXEC :=  conductor
 
-conductor: conductor.c timeLib.c
+conductor: conductor.c timeLib.c treaceReader.c
 
 all: conductor
 
