@@ -85,7 +85,7 @@ void parseArguments(int argc, char *argv[], FILE **input){
     }
 
     if (*input == NULL){
-        fprintf (stderr, "ERROR: Virtual machine trace file must be informed (option '-i [path_to_trace_file]')");
+        fprintf (stderr, "ERROR: Virtual machine trace file must be informed (option '-i [path_to_trace_file]')\n");
         exit(1);
     }
 }
