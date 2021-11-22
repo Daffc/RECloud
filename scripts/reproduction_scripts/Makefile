@@ -6,7 +6,10 @@ LDLIBS := -pthread
 
 EXEC :=  conductor
 
-conductor: conductor.c timeLib.c treaceReader.c
+conductor: conductor.c timeLib.c treaceReader.c stressor.c
+
+debug: CFLAGS := -Wall -Wextra -fsanitize=leak,address -g
+debug: all
 
 all: conductor
 
