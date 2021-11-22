@@ -10,6 +10,7 @@
 #include "timeLib.h"
 #include "treaceReader.h"
 #include "stressor.h"
+#include "memLib.h"
 
 #define NTHREADS 2
 
@@ -70,21 +71,21 @@ void parseArguments(int argc, char *argv[], FILE **input){
     }
 }
 
-// int calculateSharedMemory
-
 int main(int argc, char *argv[]){
-    struct timespec ts_sampling;    // Stores current time after calculus and before sleep.
+    struct timespec ts_sampling;        // Stores current time after calculus and before sleep.
 
-    double db_delay;                // Target delay between iterations (must be the same as the used to generate the reproduced trace).
-    double db_acc;                  // Accumulates the time error between iterations in order to dissipate it along the reproduction.
-    struct timespec ts_interval;    // Actial time interval that will be applied to sleep function.
-    struct timespec ts_prev;        // Current time of previour time sampling (ts_sampling).
+    double db_delay;                    // Target delay between iterations (must be the same as the used to generate the reproduced trace).
+    double db_acc;                      // Accumulates the time error between iterations in order to dissipate it along the reproduction.
+    struct timespec ts_interval;        // Actial time interval that will be applied to sleep function.
+    struct timespec ts_prev;            // Current time of previour time sampling (ts_sampling).
 
-    pthread_t *stressors;           // Pointer to array of descriptors of stressor threads.
+    pthread_t *stressors;               // Pointer to array of descriptors of stressor threads.
 
-    TTraceEntry t_entry;            // Structure that stores information for trace entry according to Timestamp.
+    TTraceEntry t_entry;                // Structure that stores information for trace entry according to Timestamp.
 
-    FILE *f_trace;                  // The file descriptor of trace that will be read.
+    FILE *f_trace;                      // The file descriptor of trace that will be read.
+
+    unsigned long long env_mem_load;    // Stores amount of memory used by the system in Idle state + allocated structures of 'conductor' processes and children in kB.
 
     parseArguments(argc, argv, &f_trace);
 
@@ -109,6 +110,10 @@ int main(int argc, char *argv[]){
         pthread_create(&stressors[i], NULL, initializeStressor, (void *)(ids + i));
     }
 
+    // Recovering environment memory load (Idle system + this process).
+    env_mem_load = getSysBusyMem();
+    printf("env_mem_load :%llu\n", env_mem_load);
+
     db_delay = 0.5;
 
     // Initiating time control variables.
@@ -119,7 +124,7 @@ int main(int argc, char *argv[]){
     clock_gettime(CLOCK_REALTIME, &ts_prev);
 
     nanosleep(&ts_interval , &ts_interval);
-
+    
     // Sampling current time.
     clock_gettime(CLOCK_REALTIME, &ts_sampling);
 
