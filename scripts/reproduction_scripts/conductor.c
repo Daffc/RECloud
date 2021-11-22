@@ -9,31 +9,11 @@
 
 #include "timeLib.h"
 #include "treaceReader.h"
+#include "stressor.h"
 
 #define NTHREADS 2
 
 int *ids;
-pthread_mutex_t lock_loop;
-pthread_mutex_t lock_sync;
-pthread_cond_t cv;
-
-void *initializeStressor (void *id){
-    int t_id;
-    struct timespec time;
-    int c;
-    
-    t_id = *((int *) id);
-    
-    printf("ID %d LIVE.\n", t_id);
-
-
-    while(1){
-        pthread_cond_wait(&cv, &lock_loop);
-        clock_gettime(CLOCK_REALTIME, &time);
-        printf("\t ID: %d\t %s\n", t_id, stringifyTimespec(time));
-
-    }   
-}
 
 // Reads Arguments received by the program, informing help messages, 
 // defining input trace file.
