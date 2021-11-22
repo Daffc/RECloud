@@ -70,20 +70,21 @@ void parseArguments(int argc, char *argv[], FILE **input){
     }
 }
 
+// int calculateSharedMemory
+
 int main(int argc, char *argv[]){
-    struct timespec ts_sampling;
+    struct timespec ts_sampling;    // Stores current time after calculus and before sleep.
 
-    double db_delay;
-    double db_acc;
-    struct timespec ts_interval;
-    struct timespec ts_prev;
+    double db_delay;                // Target delay between iterations (must be the same as the used to generate the reproduced trace).
+    double db_acc;                  // Accumulates the time error between iterations in order to dissipate it along the reproduction.
+    struct timespec ts_interval;    // Actial time interval that will be applied to sleep function.
+    struct timespec ts_prev;        // Current time of previour time sampling (ts_sampling).
 
-    pthread_t *stressors;
+    pthread_t *stressors;           // Pointer to array of descriptors of stressor threads.
 
-    double timestamp;
-    unsigned int mem_bytes;
-    float cpu_perc;
-    FILE *f_trace;
+    TTraceEntry t_entry;            // Structure that stores information for trace entry according to Timestamp.
+
+    FILE *f_trace;                  // The file descriptor of trace that will be read.
 
     parseArguments(argc, argv, &f_trace);
 
@@ -122,10 +123,10 @@ int main(int argc, char *argv[]){
     // Sampling current time.
     clock_gettime(CLOCK_REALTIME, &ts_sampling);
 
-    while(followCPUMem(f_trace, &timestamp, &mem_bytes, &cpu_perc)){
+    while(followCPUMem(f_trace, &t_entry)){
 
         printf("%s\n", stringifyTimespec(ts_sampling));
-        printf("%lf, %u, %f\n", timestamp, mem_bytes, cpu_perc);
+        printf("%lf, %u, %f\n", t_entry.timestamp, t_entry.mem_kB, t_entry.cpu_perc);
 
         // Calculating new adusted interval.
         ts_interval = calculateNextInterval(ts_sampling, ts_prev, db_delay, &db_acc);

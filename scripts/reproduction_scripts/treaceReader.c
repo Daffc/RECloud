@@ -38,7 +38,7 @@ int preparePointerCPUMem(FILE *file){
 }
 
 // Receiving the 'file' pointer, read the next line, looking for code 'PAJESETVARIABLE', if it matches, recovers timestamp, memory in bytes, and CPU usage.
-int followCPUMem(FILE *file, double *timestamp, unsigned int *mem_bytes, float *cpu_perc){
+int followCPUMem(FILE *file, TTraceEntry *t_entry){
     char *code;
 
     char *line;
@@ -60,18 +60,18 @@ int followCPUMem(FILE *file, double *timestamp, unsigned int *mem_bytes, float *
     }
 
     
-    *timestamp = strtod(strtok(NULL," "), NULL);        // Recovering timestamp of sampling.
-    strtok(NULL," ");                                   // Skipping virtual machine's name. 
-    strtok(NULL," ");                                   // Skipping 'MEM' label
-    *mem_bytes = strtoul(strtok(NULL," "), NULL, 0);    // Recovering memory value for the timestamp.
+    t_entry->timestamp = strtod(strtok(NULL," "), NULL);    // Recovering timestamp of sampling.
+    strtok(NULL," ");                                       // Skipping virtual machine's name. 
+    strtok(NULL," ");                                       // Skipping 'MEM' label
+    t_entry->mem_kB = strtoul(strtok(NULL," "), NULL, 0);   // Recovering memory value (kilobytes) for the timestamp.
 
     // Reading next line (CPU variable for same timestamp.)
     read = getline(&line, &line_len, file);
-    strtok(line," ");                                   // Skipping 'PAJESETVARIABLE' code.
-    strtok(NULL," ");                                   // Skipping timestamp (same of previous MEM entry).
-    strtok(NULL," ");                                   // Skipping vm name.
-    strtok(NULL," ");                                   // Skipping 'CPU' labe
-    *cpu_perc = strtof(strtok(NULL," "), NULL);         // Recovering CPU value for the timestamp.
+    strtok(line," ");                                       // Skipping 'PAJESETVARIABLE' code.
+    strtok(NULL," ");                                       // Skipping timestamp (same of previous MEM entry).
+    strtok(NULL," ");                                       // Skipping vm name.
+    strtok(NULL," ");                                       // Skipping 'CPU' labe
+    t_entry->cpu_perc = strtof(strtok(NULL," "), NULL);     // Recovering CPU value for the timestamp.
 
     free(line);
     
