@@ -8,42 +8,43 @@
 #include "stressor.h"
 #include "timeLib.h"
 
-int *ids; // Used to store stressors threads ID.
+// Array of 'TStressorsData' used as data argument for each stressor.
+TStressorsData *s_data_array; 
 
-void *initializeStressor (void *id){
-    int t_id;
+void *initializeStressor (void *data){
+    TStressorsData *stressor_data;
     struct timespec time;
 
-    t_id = *((int *) id);
+    stressor_data = (TStressorsData *) data;
     
-    printf("ID %d LIVE.\n", t_id);
+    printf("ID %d LIVE.\n", stressor_data->id);
 
     while(1){
         pthread_cond_wait(&cv, &lock_loop);
         clock_gettime(CLOCK_REALTIME, &time);
-        printf("\t ID: %d\t %s\n", t_id, stringifyTimespec(time));
+        printf("\tID: %u \t MEMLOAD: %llu\t %s\n", stressor_data->id, *stressor_data->p_mem_load, stringifyTimespec(time));
     }   
 }
 
-// Starts stressors as well as the controller metex and andition variable.
-void startStressors(pthread_t *stressors, unsigned char n_stressors){
+// Starts stressors as well as the controller metex and andition variable, pointing 'p_mem_load' from each 'TStressorsData' structure to 'shared_mem_load_bytes_pointer'.
+void startStressors(pthread_t *stressors, unsigned char n_stressors, unsigned long long *shared_mem_load_bytes_pointer){
     extern pthread_mutex_t lock_loop; 
     extern pthread_cond_t cv;
     
     unsigned char i;
 
-    // Allocating identification array.
-    ids = malloc(n_stressors * sizeof(int));    
-    
     // Initializing mutexes and conditional variables.
     pthread_mutex_init(&lock_loop, NULL);
-    pthread_cond_init(&cv, NULL);                
+    pthread_cond_init(&cv, NULL); 
 
-
-    // Creating and starting threads.
+    // Allocating stressors data structure array.
+    s_data_array = malloc(n_stressors * sizeof(TStressorsData));    
+ 
+    // Defining values for 's_data_array', creating and starting for each stressor thread.
     for(i = 0; i < n_stressors; i++){
-        ids[i] = i;
-        pthread_create(&stressors[i], NULL, initializeStressor, (void *)(ids + i));
+        s_data_array[i].id = i;
+        s_data_array[i].p_mem_load = shared_mem_load_bytes_pointer;
+        pthread_create(&stressors[i], NULL, initializeStressor, (void *)(s_data_array + i));
     }
 }
 
@@ -57,6 +58,6 @@ void stopStressors(pthread_t *stressors, unsigned char n_stressors){
         pthread_join(stressors[i], NULL);
     }
 
-    // Freeing identification array.
-    free(ids);
+    // Freeing stressors data array.
+    // free(s_data_array);
 }

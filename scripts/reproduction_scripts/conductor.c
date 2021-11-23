@@ -13,7 +13,8 @@
 
 #define NTHREADS 2
 
-unsigned long long memLoadBytes;
+// Variable that will contain the amount, in bytes, that each stressor must onerate from the system.
+unsigned long long shared_mem_load_bytes;
 
 // Reads Arguments received by the program, informing help messages, 
 // defining input trace file.
@@ -72,7 +73,7 @@ void parseArguments(int argc, char *argv[], FILE **input){
 
 // Given Idle System load (env_mem_load_kB) and next expected system load (trace_mem_kB), 
 // calculates the memory value in Bytes that each stressor will have to occupy.
-unsigned long long calculateSharedMemLoadBytes(unsigned long long env_mem_load_kB, unsigned long long trace_mem_kB, unsigned char n_stressors){
+unsigned long long calculateSharedshared_mem_load_bytes(unsigned long long env_mem_load_kB, unsigned long long trace_mem_kB, unsigned char n_stressors){
     unsigned long long final_mem_load;
 
     // Calculating new memory workload
@@ -119,7 +120,7 @@ int main(int argc, char *argv[]){
 
     // Allocating Stressors and getting them ready to reproduction.
     stressors = malloc (NTHREADS * sizeof(pthread_t));
-    startStressors(stressors, NTHREADS);
+    startStressors(stressors, NTHREADS, &shared_mem_load_bytes);
 
     // Recovering environment memory load (Idle system + this process).
     env_mem_load = getSysBusyMem();
@@ -151,9 +152,9 @@ int main(int argc, char *argv[]){
         ts_prev = ts_sampling;
 
         
-        memLoadBytes = calculateSharedMemLoadBytes(env_mem_load, t_entry.mem_kB, NTHREADS);
+        shared_mem_load_bytes = calculateSharedshared_mem_load_bytes(env_mem_load, t_entry.mem_kB, NTHREADS);
 
-        printf("memLoadBytes: %llu\n", memLoadBytes);
+        printf("shared_mem_load_bytes: %llu\n", shared_mem_load_bytes);
 
         pthread_cond_broadcast(&cv);
 
