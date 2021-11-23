@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-#include <signal.h>
 #include <ctype.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -14,7 +13,6 @@
 
 #define NTHREADS 2
 
-int *ids;
 unsigned long long memLoadBytes;
 
 // Reads Arguments received by the program, informing help messages, 
@@ -101,6 +99,9 @@ int main(int argc, char *argv[]){
 
     pthread_t *stressors;               // Pointer to array of descriptors of stressor threads.
 
+    // External mutex for stressors controll.
+    extern pthread_cond_t cv;
+
     TTraceEntry t_entry;                // Structure that stores information for trace entry according to Timestamp.
 
     FILE *f_trace;                      // The file descriptor of trace that will be read.
@@ -116,20 +117,9 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
+    // Allocating Stressors and getting them ready to reproduction.
     stressors = malloc (NTHREADS * sizeof(pthread_t));
-    ids = malloc(NTHREADS * sizeof(int));
-    
-    pthread_mutex_init( &lock_loop, NULL);
-    pthread_mutex_init( &lock_sync, NULL);
-    pthread_cond_init( &cv, NULL);
-
-    pthread_mutex_lock(&lock_sync);
-
-    // Creating threads
-    for(int i = 0; i < NTHREADS; i++){
-        ids[i] = i;
-        pthread_create(&stressors[i], NULL, initializeStressor, (void *)(ids + i));
-    }
+    startStressors(stressors, NTHREADS);
 
     // Recovering environment memory load (Idle system + this process).
     env_mem_load = getSysBusyMem();
@@ -174,12 +164,8 @@ int main(int argc, char *argv[]){
         clock_gettime(CLOCK_REALTIME, &ts_sampling);
     }
 
-    for(int i = 0; i < NTHREADS; i++){
-        pthread_kill(stressors[i], SIGTERM);   
-        pthread_join(stressors[i], NULL);
-    }
-
-    fclose(f_trace);
-    free(ids);
+    // Killing stressors and freeinf their management memory.
+    stopStressors(stressors, NTHREADS);
     free(stressors);
+    fclose(f_trace);
 }
