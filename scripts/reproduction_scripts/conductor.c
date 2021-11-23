@@ -15,6 +15,7 @@
 #define NTHREADS 2
 
 int *ids;
+unsigned long long memLoadBytes;
 
 // Reads Arguments received by the program, informing help messages, 
 // defining input trace file.
@@ -60,7 +61,7 @@ void parseArguments(int argc, char *argv[], FILE **input){
                 fprintf (stderr, "ERROR: Unknown option character '\\x%x'.\n", optopt);
             exit(1);
 
-        // Fallback.
+        // Fallback.31229952
         default:
             abort();
     }
@@ -69,6 +70,25 @@ void parseArguments(int argc, char *argv[], FILE **input){
         fprintf (stderr, "ERROR: Virtual machine trace file must be informed (option '-i [path_to_trace_file]')\n");
         exit(1);
     }
+}
+
+// Given Idle System load (env_mem_load_kB) and next expected system load (trace_mem_kB), 
+// calculates the memory value in Bytes that each stressor will have to occupy.
+unsigned long long calculateSharedMemLoadBytes(unsigned long long env_mem_load_kB, unsigned long long trace_mem_kB, unsigned char n_stressors){
+    unsigned long long final_mem_load;
+
+    // Calculating new memory workload
+    final_mem_load = trace_mem_kB - env_mem_load_kB;
+
+    // Converting final_mem_load from KB to B.
+    final_mem_load = final_mem_load * 1024;
+
+    printf("final_mem_load: %llu\n", final_mem_load);
+
+    // Dividing load by the number of stressors.
+    final_mem_load = final_mem_load / n_stressors;
+
+    return final_mem_load;
 }
 
 int main(int argc, char *argv[]){
@@ -89,8 +109,9 @@ int main(int argc, char *argv[]){
 
     parseArguments(argc, argv, &f_trace);
 
+    // Adjusting 'f_traces' pointer to the first CPU/MEM trace entry.
     if(!preparePointerCPUMem(f_trace)){
-        fprintf(stderr, "ERROR: CPU and/ or Memory Trace was not found.\n");
+        fprintf(stderr, "ERROR: CPU and/or Memory Trace was not found.\n");
         fclose(f_trace);
         exit(1);
     }
@@ -131,13 +152,18 @@ int main(int argc, char *argv[]){
     while(followCPUMem(f_trace, &t_entry)){
 
         printf("%s\n", stringifyTimespec(ts_sampling));
-        printf("%lf, %u, %f\n", t_entry.timestamp, t_entry.mem_kB, t_entry.cpu_perc);
+        printf("%lf, %llu, %f\n", t_entry.timestamp, t_entry.mem_kB, t_entry.cpu_perc);
 
         // Calculating new adusted interval.
         ts_interval = calculateNextInterval(ts_sampling, ts_prev, db_delay, &db_acc);
 
         // Updating value of previous time measured (ts_prev).
         ts_prev = ts_sampling;
+
+        
+        memLoadBytes = calculateSharedMemLoadBytes(env_mem_load, t_entry.mem_kB, NTHREADS);
+
+        printf("memLoadBytes: %llu\n", memLoadBytes);
 
         pthread_cond_broadcast(&cv);
 

@@ -12,7 +12,7 @@
     // Store trace information for one entry at 'timestamp' time.
     typedef struct T_TraceEntry{
         double timestamp;               // Timestamp of current trace entry.
-        unsigned int mem_kB;            // Memory in kB for trace entry. 
+        unsigned long long mem_kB;      // Memory in kB for trace entry. 
         float cpu_perc;                 // CPU usage percentage for in kB for trace entry
     }TTraceEntry;
 
