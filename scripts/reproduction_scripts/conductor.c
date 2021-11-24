@@ -4,15 +4,15 @@
 #include <string.h>
 #include <ctype.h>
 #include <pthread.h>
-#include <thread>
 #include <unistd.h>
+#include <sys/sysinfo.h>
 
 #include "timeLib.h"
 #include "treaceReader.h"
 #include "stressor.h"
 #include "memLib.h"
 
-#define NTHREADS 3
+// #define n_cpu_procs 3
 
 // Variable that will contain the amount, in bytes, that each stressor must onerate from the system.
 long long shared_mem_load_bytes;
@@ -108,9 +108,17 @@ int main(int argc, char *argv[]){
 
     FILE *f_trace;                      // The file descriptor of trace that will be read.
 
+    // System information.
     unsigned long long env_mem_load;    // Stores amount of memory used by the system in Idle state + allocated structures of 'conductor' processes and children in kB.
 
+    unsigned char n_cpu_procs;          // Stores the number of physical cores of the system.
+
+
+    // parsing program arguments.
     parseArguments(argc, argv, &f_trace);
+
+    // Recovering numbr of physical cores from the system.
+    n_cpu_procs = get_nprocs();  
 
     // Adjusting 'f_traces' pointer to the first CPU/MEM trace entry.
     if(!preparePointerCPUMem(f_trace)){
@@ -120,8 +128,8 @@ int main(int argc, char *argv[]){
     }
 
     // Allocating Stressors and getting them ready to reproduction.
-    stressors = malloc (NTHREADS * sizeof(pthread_t));
-    initializeStressor(stressors, NTHREADS, &shared_mem_load_bytes);
+    stressors = malloc (n_cpu_procs * sizeof(pthread_t));
+    initializeStressor(stressors, n_cpu_procs, &shared_mem_load_bytes);
 
     // Recovering environment memory load (Idle system + this process).
     env_mem_load = getSysBusyMem();
@@ -153,7 +161,7 @@ int main(int argc, char *argv[]){
         ts_prev = ts_sampling;
 
         
-        shared_mem_load_bytes = calculateSharedMemLoadBytes(env_mem_load, t_entry.mem_kB, NTHREADS);
+        shared_mem_load_bytes = calculateSharedMemLoadBytes(env_mem_load, t_entry.mem_kB, n_cpu_procs);
 
         printf("shared_mem_load_bytes: %llu\n", shared_mem_load_bytes);
 
@@ -166,8 +174,8 @@ int main(int argc, char *argv[]){
         clock_gettime(CLOCK_REALTIME, &ts_sampling);
     }
 
-    // Killing stressors and freeinf their management memory.
-    stopStressors(stressors, NTHREADS);
+    // Killing stressors and freeing their management memory.
+    stopStressors(stressors, n_cpu_procs);
     free(stressors);
     fclose(f_trace);
 }
