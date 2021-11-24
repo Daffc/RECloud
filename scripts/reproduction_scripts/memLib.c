@@ -68,6 +68,5 @@ void touchNewAddresses(char *mem, long long new_mem_load, long long prev_mem_loa
     p_begin_difference = mem + prev_mem_load;
     difference =  new_mem_load - prev_mem_load;
 
-    printf("\t\tdifference: %lld\n", difference);
     memset(p_begin_difference, 0, difference);
 }

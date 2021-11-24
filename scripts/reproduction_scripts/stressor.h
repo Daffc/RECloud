@@ -7,14 +7,14 @@
     // Used as data argument for each stressor in 'pthread_create'.
     typedef struct t_stressorsData{
         unsigned char id;
-        unsigned long long *p_mem_load;
+        long long *p_mem_load;
     } TStressorsData;
 
     // Main logic flux for stressor threads.
-    void *initializeStressor(void *id);
+    void *startStressors(void *id);
 
     // Starts stressors as well as the controller metex and andition variable.
-    void startStressors(pthread_t *stressors, unsigned char n_stressors, unsigned long long *memLoadBytes);
+    void initializeStressor(pthread_t *stressors, unsigned char n_stressors, long long *memLoadBytes);
 
     // Kill stressors processors and free allocated memory for their management.
     void stopStressors(pthread_t *stressors, unsigned char n_stressors);
