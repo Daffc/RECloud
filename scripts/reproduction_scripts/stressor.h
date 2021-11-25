@@ -3,6 +3,7 @@
     
     pthread_mutex_t lock_loop;
     pthread_cond_t cv_loop;
+    pthread_barrier_t b_init_values;
 
     // Used as data argument for each stressor in 'pthread_create'.
     typedef struct t_stressorsData{

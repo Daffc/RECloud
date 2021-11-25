@@ -115,6 +115,23 @@ long long calculateSharedMemLoadBytes(unsigned long long env_mem_load_kB, unsign
     return final_mem_load;
 }
 
+// Sends Signal to the reproduction manager process informing that reproduction process is read to start.
+void sendReadySignal(){
+
+    // TODO: 
+    //      substitue 'printf()' function for proper signal sender processes that makes reproduction manager process aware of this process state.
+    printf("***** Read for Reproduction *****\n");
+}
+
+//  Defines the waiting for signal from reproduction manager process to start the reproduction scenario.
+void waitStarReproductiontSignal(){
+
+    // TODO: 
+    //      substitue 'getchar()' function for proper external signal capture from reproduction manager process.
+    getchar();
+}
+
+
 int main(int argc, char *argv[]){
     struct timespec ts_sampling;        // Stores current time after calculus and before sleep.
 
@@ -127,6 +144,7 @@ int main(int argc, char *argv[]){
 
     // External mutex for stressors controll.
     extern pthread_cond_t cv_loop;
+    extern pthread_barrier_t b_init_values;
 
     TTraceEntry t_entry;                // Structure that stores information for trace entry according to Timestamp.
 
@@ -157,20 +175,33 @@ int main(int argc, char *argv[]){
 
     // Allocating Stressors and getting them ready to reproduction.
     stressors = malloc (n_cpu_procs * sizeof(pthread_t));
-    initializeStressor(stressors, n_cpu_procs, &shared_mem_load_bytes);
 
     // Recovering environment memory load (Idle system + this process).
     env_mem_load = getSysBusyMem();
     printf("env_mem_load :%llu\n", env_mem_load);
+    
+    
+    // Setting environment to the same state as the first entry of the trace file.
+    followCPUMem(f_trace, &t_entry);
+    shared_mem_load_bytes = calculateSharedMemLoadBytes(env_mem_load, t_entry.mem_kB, n_cpu_procs);
+    initializeStressor(stressors, n_cpu_procs, &shared_mem_load_bytes);
+
+    // Waiting until all threads have properlly started and setted Memory and CPU initual values.
+    pthread_barrier_wait(&b_init_values);
+    
+    // Sends signal to the reproduction manager that reproduction process is read to be started.
+    sendReadySignal();
+    
+    // Wait for sinal to start reproduction.
+    waitStarReproductiontSignal();
 
     // Initializing variable to calculate elapsed time.
-    clock_gettime(CLOCK_REALTIME, &ts_prev);
-
-    nanosleep(&ts_interval , &ts_interval);
-    
-    // Sampling current time.
     clock_gettime(CLOCK_REALTIME, &ts_sampling);
 
+    // Defining a synthetic 'ts_prev' time spec value, in 'db_delay' seconds before 'ts_sampling'.
+    ts_prev = timespecSubPositiveDouble(&ts_sampling, &db_delay);
+
+    
     while(followCPUMem(f_trace, &t_entry)){
 
         printf("%s\n", stringifyTimespec(ts_sampling));
@@ -182,7 +213,6 @@ int main(int argc, char *argv[]){
         // Updating value of previous time measured (ts_prev).
         ts_prev = ts_sampling;
 
-        
         shared_mem_load_bytes = calculateSharedMemLoadBytes(env_mem_load, t_entry.mem_kB, n_cpu_procs);
 
         printf("shared_mem_load_bytes: %llu\n", shared_mem_load_bytes);

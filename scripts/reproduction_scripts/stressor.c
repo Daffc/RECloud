@@ -26,6 +26,9 @@ void initializeStressor(pthread_t *stressors, unsigned char n_stressors, long lo
     pthread_mutex_init(&lock_loop, NULL);
     pthread_cond_init(&cv_loop, NULL); 
 
+    // Initializing barrier for stressor threads initialization (stressor threads + main thread).
+    pthread_barrier_init (&b_init_values, NULL, n_stressors + 1);
+
     // Allocating stressors data structure array.
     s_data_array = malloc(n_stressors * sizeof(TStressorsData));    
  
@@ -89,17 +92,27 @@ void *startStressors (void *data){
 
     extern pthread_mutex_t lock_loop;
     extern pthread_cond_t cv_loop;
+    extern pthread_barrier_t b_init_values;
 
 
 
     // Parsing data argument pointer to TStressor structure.
     stressor_data = (TStressorsData *) data;
 
-    printf("ID %d LIVE.\n", stressor_data->id);
+    
 
     // Starting memStressor allocation.
     mem_stressor_alloc = malloc(1);
     prev_mem_load = 1;
+    // Updating mem load.
+
+    printf("ID %d LIVE. \tMEMLOAD(B): %llu\n", stressor_data->id, *stressor_data->p_mem_load);
+
+    // Presetting environment with memory stress.
+    adjustingMemStressor(*(stressor_data->p_mem_load), &(prev_mem_load), &(mem_stressor_alloc));
+
+    // Waiting for other threads.
+    pthread_barrier_wait(&b_init_values);
 
     while(1){
         pthread_cond_wait(&cv_loop, &lock_loop);
