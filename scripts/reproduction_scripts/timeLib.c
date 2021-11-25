@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 #include "timeLib.h"
 
@@ -18,7 +19,7 @@ char * stringifyTimespec(struct timespec timestamp){
     return buf;
 }
 
-// Calculates time enlapse between from timespec 'x' to 'y', storing difference in 'result', and returning singal of operation.
+// Calculates time enlapse from timespec 'x' to 'y', storing difference in 'result', and returning singal of operation.
 int timespecElapsed (struct timespec *result, struct timespec x, struct timespec  y){
   
     struct timespec * big;
@@ -113,3 +114,65 @@ struct timespec calculateNextInterval(struct timespec ts_actual, struct timespec
     // Converting new time interval from double to timespec and returning.
     return doubleToTimespec(&db_interval);
 }
+
+// Given a pointer to timespec 'ts_base' and positive double value 'db_value' 
+// (Representing seconds in integer part and nanoseconds in float part), 
+// returns new timespec resulting from the sum of the two previous values. 
+struct timespec timespecAddPositiveDouble(struct timespec *ts_base, double *db_value){
+    struct timespec result;
+    long    nsec;
+    long    trunc_value;
+
+    // Checking if 'db_value' represents a negative value.
+    if(*db_value < 0){
+        fprintf(stderr, "ERROR: Negative double value in 'timespecAddPositiveDouble' function. '%lf'.\n", *db_value);
+        exit(1);
+    }
+
+    trunc_value = trunc(*db_value);
+
+    result.tv_sec = ts_base->tv_sec;
+    nsec = ts_base->tv_nsec + ((*(db_value) - trunc_value) * BILLION);
+
+    // If 'nsec'  greater is than BILLION, add on second to the result and adjust 'nsec'.
+    if(nsec > BILLION){
+        result.tv_sec += 1;
+        nsec -= BILLION;
+    }
+
+    result.tv_sec += trunc_value;   // Adding seconds from 'db_value'
+    result.tv_nsec = nsec;          // Defining final nanoseconds value.
+
+    return result;
+}
+
+// Given a pointer to timespec 'ts_base' and positive double value 'db_value' 
+// (Representing seconds in integer part and nanoseconds in float part), 
+// returns new timespec resulting from the subtraction of the two previous values.
+struct timespec timespecSubPositiveDouble(struct timespec *ts_base, double *db_value){
+        struct  timespec result;
+        long    nsec;
+        long    trunc_value;
+
+        // Checking if 'db_value' represents a negative value.
+        if(*db_value < 0){
+            fprintf(stderr, "ERROR: Negative double value in 'timespecSubPositiveDouble' function. '%lf'.\n", *db_value);
+            exit(1);
+        }
+
+        trunc_value = trunc(*db_value);
+
+        result.tv_sec = ts_base->tv_sec;
+        nsec = ts_base->tv_nsec - ((*(db_value) - trunc_value) * BILLION);
+        if(nsec < 0){
+            result.tv_sec -= 1;
+            nsec = nsec + BILLION;
+        }
+
+        result.tv_sec -= trunc_value;
+        result.tv_nsec = nsec;
+
+        return result;
+}
+
+
