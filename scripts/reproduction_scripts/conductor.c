@@ -12,18 +12,20 @@
 #include "stressor.h"
 #include "memLib.h"
 
-// #define n_cpu_procs 3
+#define MAX_DELAY 5
+#define MIN_DELAY 0.05
 
 // Variable that will contain the amount, in bytes, that each stressor must onerate from the system.
 long long shared_mem_load_bytes;
 
 // Reads Arguments received by the program, informing help messages, 
 // defining input trace file.
-void parseArguments(int argc, char *argv[], FILE **input){
+void parseArguments(int argc, char *argv[], FILE **input, double *delay){
     char c;
     *input = NULL;
+    *delay = 0.0;
 
-    while ((c = getopt (argc, argv, "hi:")) != -1)
+    while ((c = getopt (argc, argv, "hi:d:")) != -1)
     switch (c){
         // Helper Argument.
         case 'h': 
@@ -51,8 +53,25 @@ void parseArguments(int argc, char *argv[], FILE **input){
             }
             break;
 
+        // Redefine delay between samples (default 0.5s).
+        case 'd':
+            // Converting value that follows '-d' to double, storing in *delay and, in case of error, print error and exists.
+            if(sscanf(optarg, "%lf", delay) != 1){
+                fprintf(stderr, "ERROR: value '%s' does not represents time in seconds (must be between %d and %.2lf).\n", optarg, MAX_DELAY, MIN_DELAY);
+                exit(1);
+            }
+            else 
+                if( (*delay < MIN_DELAY )|| (*delay > MAX_DELAY) ){
+                    fprintf(stderr, "ERROR: value '%s' out of boundaries (must be between %d and %.2lf).\n", optarg, MAX_DELAY, MIN_DELAY);
+                    exit(1);
+                }
+
+            break;
+
         // Unknow argument / not optinal argument not informed.  
         case '?':
+            if (optopt == 'd')
+                fprintf (stderr, "ERROR: Option '-d' requires an argument in seconds between %d and %.2f.\n", MAX_DELAY, MIN_DELAY);
             if (optopt == 'i')
                 fprintf (stderr, "ERROR: Option '-i' requires an argument (path to PAJE trace file).\n");
             else if (isprint (optopt))
@@ -61,13 +80,18 @@ void parseArguments(int argc, char *argv[], FILE **input){
                 fprintf (stderr, "ERROR: Unknown option character '\\x%x'.\n", optopt);
             exit(1);
 
-        // Fallback.31229952
+        // Fallback
         default:
             abort();
     }
 
     if (*input == NULL){
         fprintf (stderr, "ERROR: Virtual machine trace file must be informed (option '-i [path_to_trace_file]')\n");
+        exit(1);
+    }
+
+    if (*delay == 0.0){
+        fprintf (stderr, "ERROR: The delay between samples must be informed (option '-d [value between %d and %.2f.]')\n", MAX_DELAY, MIN_DELAY);
         exit(1);
     }
 }
@@ -102,7 +126,7 @@ int main(int argc, char *argv[]){
     pthread_t *stressors;               // Pointer to array of descriptors of stressor threads.
 
     // External mutex for stressors controll.
-    extern pthread_cond_t cv;
+    extern pthread_cond_t cv_loop;
 
     TTraceEntry t_entry;                // Structure that stores information for trace entry according to Timestamp.
 
@@ -115,9 +139,13 @@ int main(int argc, char *argv[]){
 
 
     // parsing program arguments.
-    parseArguments(argc, argv, &f_trace);
+    parseArguments(argc, argv, &f_trace, &db_delay);
+    
+    // Initiating time control variables.
+    db_acc = 0;                                     // The variable that accumulates error between sampling rounds.
+    ts_interval = doubleToTimespec(&db_delay);      // The Timespec representation of delay between sampling intervals.
 
-    // Recovering numbr of physical cores from the system.
+    // Recovering number of "physical" cores from the system.
     n_cpu_procs = get_nprocs();  
 
     // Adjusting 'f_traces' pointer to the first CPU/MEM trace entry.
@@ -134,12 +162,6 @@ int main(int argc, char *argv[]){
     // Recovering environment memory load (Idle system + this process).
     env_mem_load = getSysBusyMem();
     printf("env_mem_load :%llu\n", env_mem_load);
-
-    db_delay = 0.5;
-
-    // Initiating time control variables.
-    db_acc = 0;                                     // The variable that accumulates error between sampling rounds.
-    ts_interval = doubleToTimespec(&db_delay);      // The Timespec representation of delay between sampling intervals.
 
     // Initializing variable to calculate elapsed time.
     clock_gettime(CLOCK_REALTIME, &ts_prev);
@@ -165,7 +187,7 @@ int main(int argc, char *argv[]){
 
         printf("shared_mem_load_bytes: %llu\n", shared_mem_load_bytes);
 
-        pthread_cond_broadcast(&cv);
+        pthread_cond_broadcast(&cv_loop);
 
         // Sleeping
         nanosleep(&ts_interval , &ts_interval);

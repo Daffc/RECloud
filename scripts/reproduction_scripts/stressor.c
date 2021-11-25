@@ -18,13 +18,13 @@ TStressorsData *s_data_array;
 // Starts stressors as well as the controller metex and andition variable, pointing 'p_mem_load' from each 'TStressorsData' structure to 'shared_mem_load_bytes_pointer'.
 void initializeStressor(pthread_t *stressors, unsigned char n_stressors, long long *shared_mem_load_bytes_pointer){
     extern pthread_mutex_t lock_loop; 
-    extern pthread_cond_t cv;
+    extern pthread_cond_t cv_loop;
     
     unsigned char i;
 
-    // Initializing mutexes and conditional variables.
+    // Initializing mutexe and conditional variables for main loop controll.
     pthread_mutex_init(&lock_loop, NULL);
-    pthread_cond_init(&cv, NULL); 
+    pthread_cond_init(&cv_loop, NULL); 
 
     // Allocating stressors data structure array.
     s_data_array = malloc(n_stressors * sizeof(TStressorsData));    
@@ -87,6 +87,11 @@ void *startStressors (void *data){
     
     long long prev_mem_load;
 
+    extern pthread_mutex_t lock_loop;
+    extern pthread_cond_t cv_loop;
+
+
+
     // Parsing data argument pointer to TStressor structure.
     stressor_data = (TStressorsData *) data;
 
@@ -97,7 +102,7 @@ void *startStressors (void *data){
     prev_mem_load = 1;
 
     while(1){
-        pthread_cond_wait(&cv, &lock_loop);
+        pthread_cond_wait(&cv_loop, &lock_loop);
         clock_gettime(CLOCK_REALTIME, &time);
         printf("\tID: %u \t MEMLOAD: %llu\t %s\n", stressor_data->id, *stressor_data->p_mem_load, stringifyTimespec(time));
 

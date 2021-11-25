@@ -2,7 +2,7 @@
     #define __STRESSOR__
     
     pthread_mutex_t lock_loop;
-    pthread_cond_t cv;
+    pthread_cond_t cv_loop;
 
     // Used as data argument for each stressor in 'pthread_create'.
     typedef struct t_stressorsData{
