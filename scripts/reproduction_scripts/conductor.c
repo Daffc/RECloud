@@ -99,18 +99,20 @@ void parseArguments(int argc, char *argv[], FILE **input, double *delay){
 // Given Idle System load (env_mem_load_kB) and next expected system load (trace_mem_kB), 
 // calculates the memory value in Bytes that each stressor will have to occupy.
 long long calculateSharedMemLoadBytes(unsigned long long env_mem_load_kB, unsigned long long trace_mem_kB, unsigned char n_stressors){
-    unsigned long long final_mem_load;
+    long long int final_mem_load;
 
+    printf("trace_mem_kB: %llu\t env_mem_load_kB: %llu\n", trace_mem_kB, env_mem_load_kB);
     // Calculating new memory workload
     final_mem_load = trace_mem_kB - env_mem_load_kB;
+
+    printf("final_mem_load(kB): %lld\n", final_mem_load);
 
     // Converting final_mem_load from KB to B.
     final_mem_load = final_mem_load * 1024;
 
-    printf("final_mem_load: %llu\n", final_mem_load);
-
     // Dividing load by the number of stressors.
     final_mem_load = final_mem_load / n_stressors;
+
 
     return final_mem_load;
 }
@@ -178,7 +180,7 @@ int main(int argc, char *argv[]){
 
     // Recovering environment memory load (Idle system + this process).
     env_mem_load = getSysBusyMem();
-    printf("env_mem_load :%llu\n", env_mem_load);
+    printf("env_mem_load: %llu\n", env_mem_load);
     
     
     // Setting environment to the same state as the first entry of the trace file.
@@ -215,7 +217,7 @@ int main(int argc, char *argv[]){
 
         shared_mem_load_bytes = calculateSharedMemLoadBytes(env_mem_load, t_entry.mem_kB, n_cpu_procs);
 
-        printf("shared_mem_load_bytes: %llu\n", shared_mem_load_bytes);
+        printf("shared_mem_load_bytes: %lld\n", shared_mem_load_bytes);
 
         pthread_cond_broadcast(&cv_loop);
 

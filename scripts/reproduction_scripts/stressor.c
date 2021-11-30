@@ -59,6 +59,7 @@ void stopStressors(pthread_t *stressors, unsigned char n_stressors){
 
 void adjustingMemStressor(long long new_mem_stress, long long *prev_mem_stress, char ** mem_stressor_alloc){
 
+    // printf("\t\tadjustingMemStressor\tnew_mem_stress: %lld\tprev_mem_stress %lld\n", new_mem_stress, *prev_mem_stress);
     // Checking if it is needed to memoy onerate the system (new_mem_stress is positive).
     if(new_mem_stress > 0){
 
@@ -69,16 +70,15 @@ void adjustingMemStressor(long long new_mem_stress, long long *prev_mem_stress, 
         if(new_mem_stress > *prev_mem_stress){
             touchNewAddresses(*mem_stressor_alloc, new_mem_stress, *prev_mem_stress);     
         }
+        // Updating 'prev_mem_stress' for next iteration.
+        *prev_mem_stress = new_mem_stress;
     }
     // If system is alread to load compared to the mem sample (new_mem_stress is negative, occupy minimum space as possible).
     else{
         // Adjusting memory allocation.
         *mem_stressor_alloc = (char*) realloc(*mem_stressor_alloc, 1);
+        *prev_mem_stress = 1;
     }
-
-    // Updating 'prev_mem_stress' for next iteration.
-    *prev_mem_stress = new_mem_stress;
-
 }
 
 // -------------------- MAIN STRESSORS FUNCTIONS --------------------
@@ -106,7 +106,8 @@ void *startStressors (void *data){
     prev_mem_load = 1;
     // Updating mem load.
 
-    printf("ID %d LIVE. \tMEMLOAD(B): %llu\n", stressor_data->id, *stressor_data->p_mem_load);
+    clock_gettime(CLOCK_REALTIME, &time);
+    printf("\tID: %u [%s]\n\t\t MEMLOAD(B): %lld\n", stressor_data->id, stringifyTimespec(time), *stressor_data->p_mem_load);
 
     // Presetting environment with memory stress.
     adjustingMemStressor(*(stressor_data->p_mem_load), &(prev_mem_load), &(mem_stressor_alloc));
@@ -117,7 +118,7 @@ void *startStressors (void *data){
     while(1){
         pthread_cond_wait(&cv_loop, &lock_loop);
         clock_gettime(CLOCK_REALTIME, &time);
-        printf("\tID: %u \t MEMLOAD: %llu\t %s\n", stressor_data->id, *stressor_data->p_mem_load, stringifyTimespec(time));
+        printf("\tID: %u [%s]\n\t\t MEMLOAD(B): %lld\n", stressor_data->id, stringifyTimespec(time), *stressor_data->p_mem_load);
 
         // Updating mem load.
         adjustingMemStressor(*(stressor_data->p_mem_load), &(prev_mem_load), &(mem_stressor_alloc));
