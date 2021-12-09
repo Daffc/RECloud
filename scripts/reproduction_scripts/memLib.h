@@ -9,8 +9,8 @@
 #ifndef __MEM_LIB__
     #define __MEM_LIB__
 
-    // Returns current processes (alongside childrens) resident memory usage in KB.
-    unsigned long getSelfMem();
+    // Returns current processes (alongside children) resident memory usage in KB.
+    unsigned long long getSelfMem();
 
     // Returns sysinfo structure, storing the following system's data:
     // struct sysinfo {

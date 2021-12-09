@@ -6,17 +6,38 @@
 #include <sys/sysinfo.h>
 #include <unistd.h>
 
-// Returns current processes (alongside childrens) resident memory usage in KB.
-unsigned long getSelfMem(){
-    struct rusage r_usage; 
-    
-    if (getrusage(RUSAGE_SELF,&r_usage) == -1){
-        fprintf(stderr, "ERROR: Unable to sample memory usage of process.\n");
+// Returns current processes (alongside its children) resident memory usage in KB.
+unsigned long long getSelfMem(){
+    FILE *proc_file;
+    char * line = NULL;
+    size_t len = 0;
+    ssize_t read;
+    char *metric;
+    char *str_RSSmem;
+    unsigned long long curr_RSS_Mem_Kb;
+
+
+    // Opening process status file.
+    proc_file = fopen("/proc/self/status", "r");
+    if (proc_file == NULL){
+        fprintf(stderr, "ERROR: Unable to read '/proc/self/status' file.\n");
         exit(1);
     }
 
-    // Returns proces memory usage in KB.
-    return r_usage.ru_maxrss;
+    // Looking for the line which initiates with 'VmRSS:' metric.
+    do{
+        read = getline(&line, &len, proc_file);
+        metric = strtok(line,"\t");  
+    }
+    while (strcmp(metric, "VmRSS:") != 0 && read != EOF);
+
+    str_RSSmem =  strtok(NULL,"\t");
+    curr_RSS_Mem_Kb = strtoul(strtok(str_RSSmem," "), NULL, 0);
+
+    fclose(proc_file);
+    free(line);
+
+    return curr_RSS_Mem_Kb;
 }
 
 // Returns sysinfo structure, storing the following system's data:
