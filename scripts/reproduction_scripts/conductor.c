@@ -35,6 +35,7 @@ void parseArguments(int argc, char *argv[], FILE **input, double *delay){
                 "Optional arguments:\n"
                 "\t-h\tDisplay help Message.\n"
                 "\t-i\tPath to input file (trace file).\n"
+                "\t-d\tThe time interval between sampling the CPU and Moemory statistics in seconds (must be between %.2lfs and %ds).\n", MIN_DELAY, MAX_DELAY
             );
 
             exit(0);
@@ -57,12 +58,12 @@ void parseArguments(int argc, char *argv[], FILE **input, double *delay){
         case 'd':
             // Converting value that follows '-d' to double, storing in *delay and, in case of error, print error and exists.
             if(sscanf(optarg, "%lf", delay) != 1){
-                fprintf(stderr, "ERROR: value '%s' does not represents time in seconds (must be between %d and %.2lf).\n", optarg, MAX_DELAY, MIN_DELAY);
+                fprintf(stderr, "ERROR: value '%s' does not represents time in seconds (must be between %.2lfs and %ds).\n", optarg, MIN_DELAY, MAX_DELAY);
                 exit(1);
             }
             else 
                 if( (*delay < MIN_DELAY )|| (*delay > MAX_DELAY) ){
-                    fprintf(stderr, "ERROR: value '%s' out of boundaries (must be between %d and %.2lf).\n", optarg, MAX_DELAY, MIN_DELAY);
+                    fprintf(stderr, "ERROR: value '%s' out of boundaries (must be between %.2lfs and %ds).\n", optarg, MIN_DELAY, MAX_DELAY);
                     exit(1);
                 }
 
@@ -71,7 +72,7 @@ void parseArguments(int argc, char *argv[], FILE **input, double *delay){
         // Unknow argument / not optinal argument not informed.  
         case '?':
             if (optopt == 'd')
-                fprintf (stderr, "ERROR: Option '-d' requires an argument in seconds between %d and %.2f.\n", MAX_DELAY, MIN_DELAY);
+                fprintf (stderr, "ERROR: Option '-d' requires an argument in seconds between %.2lfs and %ds.\n", MIN_DELAY, MAX_DELAY);
             if (optopt == 'i')
                 fprintf (stderr, "ERROR: Option '-i' requires an argument (path to PAJE trace file).\n");
             else if (isprint (optopt))
@@ -96,14 +97,22 @@ void parseArguments(int argc, char *argv[], FILE **input, double *delay){
     }
 }
 
-// Given Idle System load (env_mem_load_kB) and next expected system load (trace_mem_kB), 
+// Given next expected system load (trace_mem_kB) and available stressors (n_stressors), 
 // calculates the memory value in Bytes that each stressor will have to occupy.
-long long calculateSharedMemLoadBytes(unsigned long long env_mem_load_kB, unsigned long long trace_mem_kB, unsigned char n_stressors){
+long long calculateSharedMemLoadBytes(unsigned long long trace_mem_kB, unsigned char n_stressors){
     long long int final_mem_load;
+    unsigned long long env_mem_load;    // Total Memory load of the system.
+    unsigned long long self_mem_load;   // Memory load (RSS) of conductor process and its children.
+    unsigned long long sys_mem_load;    // System isolated memory load. 
 
-    printf("trace_mem_kB: %llu\t env_mem_load_kB: %llu\n", trace_mem_kB, env_mem_load_kB);
+    env_mem_load = getSysBusyMem();
+    self_mem_load = getSelfMem();
+    sys_mem_load = env_mem_load - self_mem_load;
+
+    printf("env_mem_load: %llu\tself_mem_load: %llu\ttrace_mem_kB: %llu\tsys_mem_load: %llu\n", env_mem_load, self_mem_load,trace_mem_kB, sys_mem_load);
+    
     // Calculating new memory workload
-    final_mem_load = trace_mem_kB - env_mem_load_kB;
+    final_mem_load = trace_mem_kB - sys_mem_load;
 
     printf("final_mem_load(kB): %lld\n", final_mem_load);
 
@@ -122,7 +131,7 @@ void sendReadySignal(){
 
     // TODO: 
     //      substitue 'printf()' function for proper signal sender processes that makes reproduction manager process aware of this process state.
-    printf("***** Read for Reproduction *****\n");
+    printf("***** Ready for Reproduction *****\n");
 }
 
 //  Defines the waiting for signal from reproduction manager process to start the reproduction scenario.
@@ -153,8 +162,6 @@ int main(int argc, char *argv[]){
     FILE *f_trace;                      // The file descriptor of trace that will be read.
 
     // System information.
-    unsigned long long env_mem_load;    // Stores amount of memory used by the system in Idle state + allocated structures of 'conductor' processes and children in kB.
-
     unsigned char n_cpu_procs;          // Stores the number of physical cores of the system.
 
 
@@ -178,14 +185,9 @@ int main(int argc, char *argv[]){
     // Allocating Stressors and getting them ready to reproduction.
     stressors = malloc (n_cpu_procs * sizeof(pthread_t));
 
-    // Recovering environment memory load (Idle system + this process).
-    env_mem_load = getSysBusyMem();
-    printf("env_mem_load: %llu\n", env_mem_load);
-    
-    
     // Setting environment to the same state as the first entry of the trace file.
     followCPUMem(f_trace, &t_entry);
-    shared_mem_load_bytes = calculateSharedMemLoadBytes(env_mem_load, t_entry.mem_kB, n_cpu_procs);
+    shared_mem_load_bytes = calculateSharedMemLoadBytes(t_entry.mem_kB, n_cpu_procs);
     initializeStressor(stressors, n_cpu_procs, &shared_mem_load_bytes);
 
     // Waiting until all threads have properlly started and setted Memory and CPU initual values.
@@ -193,7 +195,7 @@ int main(int argc, char *argv[]){
     
     // Sends signal to the reproduction manager that reproduction process is read to be started.
     sendReadySignal();
-    
+
     // Wait for sinal to start reproduction.
     waitStarReproductiontSignal();
 
@@ -203,7 +205,7 @@ int main(int argc, char *argv[]){
     // Defining a synthetic 'ts_prev' time spec value, in 'db_delay' seconds before 'ts_sampling'.
     ts_prev = timespecSubPositiveDouble(&ts_sampling, &db_delay);
 
-    
+        
     while(followCPUMem(f_trace, &t_entry)){
 
         printf("%s\n", stringifyTimespec(ts_sampling));
@@ -215,7 +217,7 @@ int main(int argc, char *argv[]){
         // Updating value of previous time measured (ts_prev).
         ts_prev = ts_sampling;
 
-        shared_mem_load_bytes = calculateSharedMemLoadBytes(env_mem_load, t_entry.mem_kB, n_cpu_procs);
+        shared_mem_load_bytes = calculateSharedMemLoadBytes(t_entry.mem_kB, n_cpu_procs);
 
         printf("shared_mem_load_bytes: %lld\n", shared_mem_load_bytes);
 
