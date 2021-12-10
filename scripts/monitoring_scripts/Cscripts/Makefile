@@ -8,6 +8,9 @@ EXEC :=  cpuMemMonitor
 
 cpuMemMonitor: cpuMemMonitor.c timeLib.c signals.c
 
+debug: CFLAGS := -Wall -Wextra -fsanitize=leak,address -g
+debug: all
+
 all: cpuMemMonitor
 
 clean:
