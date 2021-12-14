@@ -6,38 +6,33 @@
 #include <sys/sysinfo.h>
 #include <unistd.h>
 
+#include "memLib.h"
+
 // Returns current processes (alongside its children) resident memory usage in KB.
 unsigned long long getSelfMem(){
     FILE *proc_file;
-    char * line = NULL;
-    size_t len = 0;
-    ssize_t read;
-    char *metric;
-    char *str_RSSmem;
-    unsigned long long curr_RSS_Mem_Kb;
-
+    statmEntry proc_statm;
+    long page_size;
+    unsigned long long resident_memory_kB;
 
     // Opening process status file.
-    proc_file = fopen("/proc/self/status", "r");
+    proc_file = fopen("/proc/self/statm", "r");
     if (proc_file == NULL){
-        fprintf(stderr, "ERROR: Unable to read '/proc/self/status' file.\n");
+        fprintf(stderr, "ERROR: Unable to read '/proc/self/statm' file.\n");
         exit(1);
     }
 
-    // Looking for the line which initiates with 'VmRSS:' metric.
-    do{
-        read = getline(&line, &len, proc_file);
-        metric = strtok(line,"\t");  
-    }
-    while (strcmp(metric, "VmRSS:") != 0 && read != EOF);
+    // Recovering size of sistem page.
+    page_size = sysconf(_SC_PAGESIZE);
 
-    str_RSSmem =  strtok(NULL,"\t");
-    curr_RSS_Mem_Kb = strtoul(strtok(str_RSSmem," "), NULL, 0);
-
+    // Recovering data from 'proc_file' to 'statmEntry' structure.
+    fscanf(proc_file, "%lu %lu %lu %lu %c %lu %c", &proc_statm.size, &proc_statm.resident, &proc_statm.shared, &proc_statm.text, &proc_statm.lib, &proc_statm.data, &proc_statm.dt); 
     fclose(proc_file);
-    free(line);
 
-    return curr_RSS_Mem_Kb;
+    // number of resident pages (proc_statm.resident) multiplyied by page size (page_size), devided by kB size.
+    resident_memory_kB = (proc_statm.resident * page_size) / 1024;
+
+    return resident_memory_kB;
 }
 
 // Returns sysinfo structure, storing the following system's data:
