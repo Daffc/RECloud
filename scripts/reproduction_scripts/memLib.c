@@ -11,7 +11,7 @@
 // Returns current processes (alongside its children) resident memory usage in KB.
 unsigned long long getSelfMem(){
     FILE *proc_file;
-    statmEntry proc_statm;
+    TstatmEntry proc_statm;
     long page_size;
     unsigned long long resident_memory_kB;
 

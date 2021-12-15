@@ -10,7 +10,7 @@
     #define __MEM_LIB__
 
     // Structure to recover data from '/proc/self/statm', that contains memory data of 'conductor' process.
-    typedef struct statm_entry_t{
+    typedef struct t_statm_entry{
         unsigned long size;         // (1) total program size (same as VmSize in /proc/[pid]/status)
         unsigned long resident;     // (2) resident set size (same as VmRSS in /proc/[pid]/status)
         unsigned long shared;       // (3) shared pages (i.e., backed by a file)
@@ -18,7 +18,7 @@
         char lib;                   // (5) library (unused in Linux 2.6)    
         unsigned long data;         // (6) data + stack
         char dt;                    // (7) dirty pages (unused in Linux 2.6) 
-    } statmEntry;
+    } TstatmEntry;
 
     // Returns current processes (alongside children) resident memory usage in KB.
     unsigned long long getSelfMem();
