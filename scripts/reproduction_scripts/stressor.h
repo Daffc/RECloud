@@ -9,13 +9,16 @@
     typedef struct t_stressorsData{
         unsigned char id;
         long long *p_mem_load;
+        double *p_cpu_load;
+        double *p_delay_interval;
     } TStressorsData;
 
     // Main logic flux for stressor threads.
     void *startStressors(void *id);
 
-    // Starts stressors as well as the controller metex and andition variable.
-    void initializeStressor(pthread_t *stressors, unsigned char n_stressors, long long *memLoadBytes);
+    // Starts stressors as well as the controller mutex  and andition variable, pointing 'p_mem_load', 'p_cpu_load', 'p_delay_interval' 
+    // from each 'TStressorsData' structure to 'shared_mem_load_bytes_pointer', 'shared_cpu_dec_load' and 'shared_delay_interval', respectively.
+    void initializeStressor(pthread_t *stressors, unsigned char n_stressors, long long *shared_mem_load_bytes_pointer, double *shared_cpu_perc__load, double *shared_delay_interval);
 
     // Kill stressors processors and free allocated memory for their management.
     void stopStressors(pthread_t *stressors, unsigned char n_stressors);

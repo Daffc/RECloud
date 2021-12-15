@@ -15,8 +15,9 @@ TStressorsData *s_data_array;
 
 // -------------------- EXTERNAL FUNCTIONS --------------------
 
-// Starts stressors as well as the controller metex and andition variable, pointing 'p_mem_load' from each 'TStressorsData' structure to 'shared_mem_load_bytes_pointer'.
-void initializeStressor(pthread_t *stressors, unsigned char n_stressors, long long *shared_mem_load_bytes_pointer){
+// Starts stressors as well as the controller mutex  and andition variable, pointing 'p_mem_load', 'p_cpu_load', 'p_delay_interval' 
+// from each 'TStressorsData' structure to 'shared_mem_load_bytes_pointer', 'shared_cpu_dec_load' and 'shared_delay_interval', respectively. 
+void initializeStressor(pthread_t *stressors, unsigned char n_stressors, long long *shared_mem_load_bytes_pointer, double *shared_cpu_dec_load, double *shared_delay_interval){
     extern pthread_mutex_t lock_loop; 
     extern pthread_cond_t cv_loop;
     
@@ -36,6 +37,8 @@ void initializeStressor(pthread_t *stressors, unsigned char n_stressors, long lo
     for(i = 0; i < n_stressors; i++){
         s_data_array[i].id = i;
         s_data_array[i].p_mem_load = shared_mem_load_bytes_pointer;
+        s_data_array[i].p_cpu_load = shared_cpu_dec_load;
+        s_data_array[i].p_delay_interval = shared_delay_interval;
         pthread_create(&stressors[i], NULL, startStressors, (void *)(s_data_array + i));
     }
 }
@@ -107,7 +110,10 @@ void *startStressors (void *data){
     // Updating mem load.
 
     clock_gettime(CLOCK_REALTIME, &time);
-    printf("\tID: %u [%s]\n\t\t MEMLOAD(B): %lld\n", stressor_data->id, stringifyTimespec(time), *stressor_data->p_mem_load);
+    printf("\tID: %u [%s]\n", stressor_data->id, stringifyTimespec(time));
+    printf("\t\t MEMLOAD(B): %lld\n", *stressor_data->p_mem_load);
+    printf("\t\t CPULOAD: %lf\n", *stressor_data->p_cpu_load);
+    printf("\t\t DELAY: %lf\n", *stressor_data->p_delay_interval);
 
     // Presetting environment with memory stress.
     adjustingMemStressor(*(stressor_data->p_mem_load), &(prev_mem_load), &(mem_stressor_alloc));
@@ -118,7 +124,10 @@ void *startStressors (void *data){
     while(1){
         pthread_cond_wait(&cv_loop, &lock_loop);
         clock_gettime(CLOCK_REALTIME, &time);
-        printf("\tID: %u [%s]\n\t\t MEMLOAD(B): %lld\n", stressor_data->id, stringifyTimespec(time), *stressor_data->p_mem_load);
+        printf("\tID: %u [%s]\n", stressor_data->id, stringifyTimespec(time));
+        printf("\t\t MEMLOAD(B): %lld\n", *stressor_data->p_mem_load);
+        printf("\t\t CPULOAD: %lf\n", *stressor_data->p_cpu_load);
+        
 
         // Updating mem load.
         adjustingMemStressor(*(stressor_data->p_mem_load), &(prev_mem_load), &(mem_stressor_alloc));

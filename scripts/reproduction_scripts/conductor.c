@@ -15,8 +15,11 @@
 #define MAX_DELAY 5
 #define MIN_DELAY 0.05
 
-// Variable that will contain the amount, in bytes, that each stressor must onerate from the system.
-long long shared_mem_load_bytes;
+
+// Variables shared between conductor and stressors.
+long long shared_mem_load_bytes;    // Variable that will store memory load, in bytes, that each stressor must onerate from the system.
+double shared_cpu_dec_load;        // Variable that will store cpu percentage load, that each stressor must onerate from the system.
+double db_delay;                    // Target delay between iterations (must be the same as the used to generate the reproduced trace).
 
 // Reads Arguments received by the program, informing help messages, 
 // defining input trace file.
@@ -97,7 +100,7 @@ void parseArguments(int argc, char *argv[], FILE **input, double *delay){
     }
 }
 
-// Given next expected system load (trace_mem_kB) and available stressors (n_stressors), 
+// Given next expected system memory load (trace_mem_kB) and available stressors (n_stressors), 
 // calculates the memory value in Bytes that each stressor will have to occupy.
 long long calculateSharedMemLoadBytes(unsigned long long trace_mem_kB, unsigned char n_stressors){
     long long int final_mem_load;
@@ -109,12 +112,8 @@ long long calculateSharedMemLoadBytes(unsigned long long trace_mem_kB, unsigned 
     self_mem_load = getSelfMem();
     sys_mem_load = env_mem_load - self_mem_load;
 
-    printf("env_mem_load: %llu\tself_mem_load: %llu\ttrace_mem_kB: %llu\tsys_mem_load: %llu\n", env_mem_load, self_mem_load,trace_mem_kB, sys_mem_load);
-    
     // Calculating new memory workload
     final_mem_load = trace_mem_kB - sys_mem_load;
-
-    printf("final_mem_load(kB): %lld\n", final_mem_load);
 
     // Converting final_mem_load from KB to B.
     final_mem_load = final_mem_load * 1024;
@@ -122,9 +121,27 @@ long long calculateSharedMemLoadBytes(unsigned long long trace_mem_kB, unsigned 
     // Dividing load by the number of stressors.
     final_mem_load = final_mem_load / n_stressors;
 
-
     return final_mem_load;
 }
+
+// Given next expected system cpu load percentage (cpu_perc) and available stressors (n_stressors),
+// returns double value (decimal) that each stressos will have to exert in CPU.
+double calculateSharedCpuLoadDec(double cpu_perc, unsigned char n_stressors){
+    double cpu_dec;
+
+    // Dividing by number of stressors and percentile as to get decimal 
+    // CPU comsiption representation for each stressor.
+    cpu_dec = cpu_perc / (n_stressors * 100.0);
+
+    // Preventing ocasional CPU consumption above 100% for each 
+    // processor core (due to sampling accuracy in monitoring stage ).
+    if(cpu_dec > 100.0){
+        cpu_dec = 100.0;
+    }
+
+    return cpu_dec;
+}
+
 
 // Sends Signal to the reproduction manager process informing that reproduction process is read to start.
 void sendReadySignal(){
@@ -146,7 +163,6 @@ void waitStarReproductiontSignal(){
 int main(int argc, char *argv[]){
     struct timespec ts_sampling;        // Stores current time after calculus and before sleep.
 
-    double db_delay;                    // Target delay between iterations (must be the same as the used to generate the reproduced trace).
     double db_acc;                      // Accumulates the time error between iterations in order to dissipate it along the reproduction.
     struct timespec ts_interval;        // Actial time interval that will be applied to sleep function.
     struct timespec ts_prev;            // Current time of previour time sampling (ts_sampling).
@@ -188,7 +204,8 @@ int main(int argc, char *argv[]){
     // Setting environment to the same state as the first entry of the trace file.
     followCPUMem(f_trace, &t_entry);
     shared_mem_load_bytes = calculateSharedMemLoadBytes(t_entry.mem_kB, n_cpu_procs);
-    initializeStressor(stressors, n_cpu_procs, &shared_mem_load_bytes);
+    shared_cpu_dec_load = calculateSharedCpuLoadDec(t_entry.cpu_perc, n_cpu_procs);
+    initializeStressor(stressors, n_cpu_procs, &shared_mem_load_bytes, &shared_cpu_dec_load, &db_delay);
 
     // Waiting until all threads have properlly started and setted Memory and CPU initual values.
     pthread_barrier_wait(&b_init_values);
@@ -218,8 +235,7 @@ int main(int argc, char *argv[]){
         ts_prev = ts_sampling;
 
         shared_mem_load_bytes = calculateSharedMemLoadBytes(t_entry.mem_kB, n_cpu_procs);
-
-        printf("shared_mem_load_bytes: %lld\n", shared_mem_load_bytes);
+        shared_cpu_dec_load = calculateSharedCpuLoadDec(t_entry.cpu_perc, n_cpu_procs);
 
         pthread_cond_broadcast(&cv_loop);
 
