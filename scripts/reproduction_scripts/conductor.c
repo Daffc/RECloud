@@ -121,6 +121,12 @@ long long calculateSharedMemLoadBytes(unsigned long long trace_mem_kB, unsigned 
     // Dividing load by the number of stressors.
     final_mem_load = final_mem_load / n_stressors;
 
+    // Printing Memory debug if 'DEBUG_MEM' is defined in compilation time.
+    #ifdef DEBUG_MEM
+        printf("env_mem_load: %llu\tself_mem_load: %llu\ttrace_mem_kB: %llu\tsys_mem_load: %llu\n", env_mem_load, self_mem_load,trace_mem_kB, sys_mem_load);
+        printf("final_mem_load(B): %lld\n", final_mem_load);
+    #endif
+
     return final_mem_load;
 }
 

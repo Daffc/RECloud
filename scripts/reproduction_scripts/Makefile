@@ -8,8 +8,11 @@ EXEC :=  conductor
 
 conductor: conductor.c timeLib.c treaceReader.c stressor.c memLib.c
 
-debug: CFLAGS := -Wall -Wextra -fsanitize=leak,address -g
-debug: all
+debugall: CFLAGS := -Wall -Wextra -fsanitize=leak,address -g -D DEBUG_MEM
+debugall: all
+
+debugmem: CFLAGS := -D DEBUG_MEM
+debugmem: all
 
 all: conductor
 
