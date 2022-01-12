@@ -19,7 +19,8 @@
 // Variables shared between conductor and stressors.
 long long shared_mem_load_bytes;    // Variable that will store memory load, in bytes, that each stressor must onerate from the system.
 double shared_cpu_dec_load;        // Variable that will store cpu percentage load, that each stressor must onerate from the system.
-double db_delay;                    // Target delay between iterations (must be the same as the used to generate the reproduced trace).
+double shared_delay_interval;
+
 
 // Reads Arguments received by the program, informing help messages, 
 // defining input trace file.
@@ -168,6 +169,7 @@ void waitStarReproductiontSignal(){
 
 int main(int argc, char *argv[]){
     struct timespec ts_sampling;        // Stores current time after calculus and before sleep.
+    double db_delay;                    // Target delay between iterations (must be the same as the used to generate the reproduced trace).
 
     double db_acc;                      // Accumulates the time error between iterations in order to dissipate it along the reproduction.
     struct timespec ts_interval;        // Actial time interval that will be applied to sleep function.
@@ -176,8 +178,10 @@ int main(int argc, char *argv[]){
     pthread_t *stressors;               // Pointer to array of descriptors of stressor threads.
 
     // External mutex for stressors controll.
-    extern pthread_cond_t cv_loop;
     extern pthread_barrier_t b_init_values;
+    extern pthread_mutex_t *wait_mutexes;
+    extern pthread_mutex_t *start_mutexes;
+
 
     TTraceEntry t_entry;                // Structure that stores information for trace entry according to Timestamp.
 
@@ -211,7 +215,7 @@ int main(int argc, char *argv[]){
     followCPUMem(f_trace, &t_entry);
     shared_mem_load_bytes = calculateSharedMemLoadBytes(t_entry.mem_kB, n_cpu_procs);
     shared_cpu_dec_load = calculateSharedCpuLoadDec(t_entry.cpu_perc, n_cpu_procs);
-    initializeStressor(stressors, n_cpu_procs, &shared_mem_load_bytes, &shared_cpu_dec_load, &db_delay);
+    initializeStressor(stressors, n_cpu_procs, &shared_mem_load_bytes, &shared_cpu_dec_load, &shared_delay_interval);
 
     // Waiting until all threads have properlly started and setted Memory and CPU initual values.
     pthread_barrier_wait(&b_init_values);
@@ -228,7 +232,7 @@ int main(int argc, char *argv[]){
     // Defining a synthetic 'ts_prev' time spec value, in 'db_delay' seconds before 'ts_sampling'.
     ts_prev = timespecSubPositiveDouble(&ts_sampling, &db_delay);
 
-        
+
     while(followCPUMem(f_trace, &t_entry)){
 
         printf("%s\n", stringifyTimespec(ts_sampling));
@@ -240,10 +244,21 @@ int main(int argc, char *argv[]){
         // Updating value of previous time measured (ts_prev).
         ts_prev = ts_sampling;
 
+        // Sharing with threads next calculated interval ('shared_delay_interval'), 
+        // next memory stress ('shared_mem_load_bytes') and next cpu stress ('shared_cpu_dec_load').
+        shared_delay_interval = timespecToDouble(&ts_interval);
         shared_mem_load_bytes = calculateSharedMemLoadBytes(t_entry.mem_kB, n_cpu_procs);
         shared_cpu_dec_load = calculateSharedCpuLoadDec(t_entry.cpu_perc, n_cpu_procs);
 
-        pthread_cond_broadcast(&cv_loop);
+        // Waiting all stressor threads finish last stress load.
+        for(int i = 0; i < n_cpu_procs; i++){
+            pthread_mutex_lock(&wait_mutexes[i]);
+        }
+
+        // Unlocking all threads to execute new stress load.
+        for(int i = 0; i < n_cpu_procs; i++){
+            pthread_mutex_unlock(&start_mutexes[i]);
+        }
 
         // Sleeping
         nanosleep(&ts_interval , &ts_interval);

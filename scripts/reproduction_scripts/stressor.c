@@ -18,17 +18,19 @@ TStressorsData *s_data_array;
 // Starts stressors as well as the controller mutex  and andition variable, pointing 'p_mem_load', 'p_cpu_load', 'p_delay_interval' 
 // from each 'TStressorsData' structure to 'shared_mem_load_bytes_pointer', 'shared_cpu_dec_load' and 'shared_delay_interval', respectively. 
 void initializeStressor(pthread_t *stressors, unsigned char n_stressors, long long *shared_mem_load_bytes_pointer, double *shared_cpu_dec_load, double *shared_delay_interval){
-    extern pthread_mutex_t lock_loop; 
-    extern pthread_cond_t cv_loop;
+    
+    extern pthread_barrier_t b_init_values;
+    extern pthread_mutex_t *wait_mutexes;
+    extern pthread_mutex_t *start_mutexes;
     
     unsigned char i;
 
-    // Initializing mutexe and conditional variables for main loop controll.
-    pthread_mutex_init(&lock_loop, NULL);
-    pthread_cond_init(&cv_loop, NULL); 
+    // Initializing mutexes for main stressor loop controll.
+    wait_mutexes = (pthread_mutex_t *) malloc(n_stressors * sizeof(pthread_mutex_t));
+    start_mutexes = (pthread_mutex_t *) malloc(n_stressors * sizeof(pthread_mutex_t));
 
     // Initializing barrier for stressor threads initialization (stressor threads + main thread).
-    pthread_barrier_init (&b_init_values, NULL, n_stressors + 1);
+    pthread_barrier_init(&b_init_values, NULL, n_stressors + 1);
 
     // Allocating stressors data structure array.
     s_data_array = malloc(n_stressors * sizeof(TStressorsData));    
@@ -39,6 +41,13 @@ void initializeStressor(pthread_t *stressors, unsigned char n_stressors, long lo
         s_data_array[i].p_mem_load = shared_mem_load_bytes_pointer;
         s_data_array[i].p_cpu_load = shared_cpu_dec_load;
         s_data_array[i].p_delay_interval = shared_delay_interval;
+
+        pthread_mutex_init(&wait_mutexes[i], NULL);
+        pthread_mutex_init(&start_mutexes[i], NULL);
+        pthread_mutex_lock(&start_mutexes[i]);
+        s_data_array[i].p_m_wait = &wait_mutexes[i];
+        s_data_array[i].p_m_start = &start_mutexes[i];
+
         pthread_create(&stressors[i], NULL, startStressors, (void *)(s_data_array + i));
     }
 }
@@ -84,6 +93,50 @@ void adjustingMemStressor(long long new_mem_stress, long long *prev_mem_stress, 
     }
 }
 
+void adjustingCPUStressor( double cpu_load, double total_interval, double mem_interval){
+
+    double busy_cpu_interval;
+    struct timespec ts_start_cpu;
+    struct timespec ts_end_cpu;
+    struct timespec ts_actual;
+    struct timespec ts_cpu_busy;
+
+    float p;
+    int i;
+
+    // Calculating remainding time to apply CPU stress (after memory stress alread aplyed).
+    busy_cpu_interval = (total_interval * cpu_load) - mem_interval;
+
+    // Check if there isn't time to CPU reproduction, returning if true.
+    if(busy_cpu_interval <= 0)
+        return;
+
+    // Calculating end time in order to execute 'busy_cpu_interval'
+    // CPU stress interval to reach 'cpu_load' percentage.
+    clock_gettime(CLOCK_REALTIME, &ts_start_cpu);
+    ts_end_cpu = timespecAddPositiveDouble(&ts_start_cpu, &busy_cpu_interval);
+    clock_gettime(CLOCK_REALTIME, &ts_actual);
+
+    // Busy waiting in order to apply 'cpu_load' stress (while current time < 'ts_end_cpu').
+    while (timespecElapsed(&ts_cpu_busy, ts_actual, ts_end_cpu) != -1){
+        p += 1.0;
+        i += 1;
+
+        clock_gettime(CLOCK_REALTIME, &ts_actual);
+    }
+
+    // Printing CPU debug if 'DEBUG_CPU' is defined in compilation time.
+    #ifdef DEBUG_CPU
+        printf("\t\t\ttotal_interval: %lf\n", total_interval);
+        printf("\t\t\tmem_interval: %lf\n", mem_interval);
+        printf("\t\t\tbusy_cpu_interval: %lf\n", busy_cpu_interval);
+        printf("\t\t\tts_start_cpu: %s\n", stringifyTimespec(ts_start_cpu));
+        printf("\t\t\tts_end_cpu: %s\n", stringifyTimespec(ts_end_cpu));
+        printf("\t\t\tts_actual: %s\n", stringifyTimespec(ts_actual));
+    #endif
+
+}
+
 // -------------------- MAIN STRESSORS FUNCTIONS --------------------
 
 void *startStressors (void *data){
@@ -93,11 +146,11 @@ void *startStressors (void *data){
     
     long long prev_mem_load;
 
-    extern pthread_mutex_t lock_loop;
-    extern pthread_cond_t cv_loop;
-    extern pthread_barrier_t b_init_values;
+    extern pthread_barrier_t b_init_values;    
 
-
+    struct timespec ts_start_mem;
+    struct timespec ts_end_mem;
+    struct timespec ts_mem_interval;
 
     // Parsing data argument pointer to TStressor structure.
     stressor_data = (TStressorsData *) data;
@@ -118,18 +171,30 @@ void *startStressors (void *data){
     // Presetting environment with memory stress.
     adjustingMemStressor(*(stressor_data->p_mem_load), &(prev_mem_load), &(mem_stressor_alloc));
 
-    // Waiting for other threads.
-    pthread_barrier_wait(&b_init_values);
+    // Sincronizing all threads (stressors and conductor).
+    pthread_barrier_wait(&b_init_values);   
 
     while(1){
-        pthread_cond_wait(&cv_loop, &lock_loop);
+        // Wating conductor thread mutex unlock to execute new stress load.
+        pthread_mutex_lock(stressor_data->p_m_start);
+        
         clock_gettime(CLOCK_REALTIME, &time);
         printf("\tID: %u [%s]\n", stressor_data->id, stringifyTimespec(time));
-        printf("\t\t MEMLOAD(B): %lld\n", *stressor_data->p_mem_load);
-        printf("\t\t CPULOAD: %lf\n", *stressor_data->p_cpu_load);
+        printf("\t\tMEMLOAD(B): %lld\n", *stressor_data->p_mem_load);
+        printf("\t\tCPULOAD: %lf\n", *stressor_data->p_cpu_load);
         
-
-        // Updating mem load.
+        // Updating Memory stress.
+        clock_gettime(CLOCK_REALTIME, &ts_start_mem);
         adjustingMemStressor(*(stressor_data->p_mem_load), &(prev_mem_load), &(mem_stressor_alloc));
-    }   
+        clock_gettime(CLOCK_REALTIME, &ts_end_mem);
+
+        // Calculating enlapsed time dedicated to memory stress.
+        timespecElapsed(&ts_mem_interval, ts_start_mem, ts_end_mem);
+        // Applying CPU stress.
+        adjustingCPUStressor(*(stressor_data->p_cpu_load), *(stressor_data->p_delay_interval), timespecToDouble(&ts_mem_interval));
+        
+        
+        // Freeing conductor thread to call for new round of stress.
+        pthread_mutex_unlock(stressor_data->p_m_wait);
+    }  
 }

@@ -1,9 +1,9 @@
 #ifndef __STRESSOR__
     #define __STRESSOR__
     
-    pthread_mutex_t lock_loop;
-    pthread_cond_t cv_loop;
     pthread_barrier_t b_init_values;
+    pthread_mutex_t *wait_mutexes;
+    pthread_mutex_t *start_mutexes;
 
     // Used as data argument for each stressor in 'pthread_create'.
     typedef struct t_stressorsData{
@@ -11,6 +11,8 @@
         long long *p_mem_load;
         double *p_cpu_load;
         double *p_delay_interval;
+        pthread_mutex_t *p_m_wait;
+        pthread_mutex_t *p_m_start;
     } TStressorsData;
 
     // Main logic flux for stressor threads.
