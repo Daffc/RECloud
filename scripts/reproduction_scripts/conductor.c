@@ -161,9 +161,14 @@ void sendReadySignal(){
 //  Defines the waiting for signal from reproduction manager process to start the reproduction scenario.
 void waitStarReproductiontSignal(){
 
+    struct timespec ts_start;
+
     // TODO: 
     //      substitue 'getchar()' function for proper external signal capture from reproduction manager process.
     getchar();
+
+    clock_gettime(CLOCK_REALTIME, &ts_start);
+    printf("[%s] Starting Reproduction\n", stringifyTimespec(ts_start));
 }
 
 
@@ -217,7 +222,11 @@ int main(int argc, char *argv[]){
     shared_cpu_dec_load = calculateSharedCpuLoadDec(t_entry.cpu_perc, n_cpu_procs);
     initializeStressor(stressors, n_cpu_procs, &shared_mem_load_bytes, &shared_cpu_dec_load, &shared_delay_interval);
 
-    // Waiting until all threads have properlly started and setted Memory and CPU initual values.
+    // Retuning pointer of 'f_trace' to the first CPU/Memory trace. 
+    rewind(f_trace);
+    preparePointerCPUMem(f_trace);
+
+    // Waiting until all threads have properlly started and setted Memory initial values.
     pthread_barrier_wait(&b_init_values);
     
     // Sends signal to the reproduction manager that reproduction process is read to be started.
@@ -232,13 +241,12 @@ int main(int argc, char *argv[]){
     // Defining a synthetic 'ts_prev' time spec value, in 'db_delay' seconds before 'ts_sampling'.
     ts_prev = timespecSubPositiveDouble(&ts_sampling, &db_delay);
 
-
     while(followCPUMem(f_trace, &t_entry)){
 
-        printf("%s\n", stringifyTimespec(ts_sampling));
+        printf("[%s]\n", stringifyTimespec(ts_sampling));
         printf("%lf, %llu, %f\n", t_entry.timestamp, t_entry.mem_kB, t_entry.cpu_perc);
 
-        // Calculating new adusted interval.
+        // Calculating new adjusted interval.
         ts_interval = calculateNextInterval(ts_sampling, ts_prev, db_delay, &db_acc);
 
         // Updating value of previous time measured (ts_prev).
@@ -266,6 +274,12 @@ int main(int argc, char *argv[]){
         // Sampling current time.
         clock_gettime(CLOCK_REALTIME, &ts_sampling);
     }
+
+    // Waiting all stressor threads finish last stress load.
+    for(int i = 0; i < n_cpu_procs; i++){
+        pthread_mutex_lock(&wait_mutexes[i]);
+    }
+    printf("[%s] Stress Finished \n", stringifyTimespec(ts_sampling));
 
     // Killing stressors and freeing their management memory.
     stopStressors(stressors, n_cpu_procs);
