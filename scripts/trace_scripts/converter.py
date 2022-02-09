@@ -238,15 +238,16 @@ def agrupateTraces(envs: dict):
         outputPAJEVariable(0.0, vm["name"], 'MEM', 0, r_trace)
         outputPAJEVariable(0.0, vm["name"], 'CPU', 0, r_trace)
                                                                           
-    r_trace.write('\n# ----------------------------------------\n# --- Aggregating Virtual Machines Data ---\n# ----------------------------------------\n')
+    r_trace.write('\n# -----------------------------------------\n# --- Aggregating Virtual Machines Data ---\n# -----------------------------------------\n')
     for host in envs['hosts']:
       for vm in host['virtualMachines']:
         r_trace.write(f'# --- {vm["name"]} ---\n')
         with open(vm['trace_path'], 'r') as vm_trace:
           for line in vm_trace:
             r_trace.write(line)
+        r_trace.write('\n\n')
     
-    r_trace.write('\n# ----------------------------------------\n# --- Aggregating Unknown Host Communications ---\n# ----------------------------------------\n')
+    r_trace.write('\n# -----------------------------------------------\n# --- Aggregating Unknown Host Communications ---\n# -----------------------------------------------\n')
     with open(envs['unknown_trace'], 'r') as unknown_trace:
       for line in unknown_trace:
         r_trace.write(line)
