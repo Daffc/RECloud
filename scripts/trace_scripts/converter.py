@@ -1,5 +1,6 @@
 #!/usr/bin/env python3.9
 
+import re
 import json
 import os
 import sys
@@ -25,14 +26,14 @@ UNKNOWN_HOST = "Unknown"
 EXPERIMENT_ID = datetime.now().strftime('%d-%m-%Y_%H:%M')
 
 PAJE_CODES = {
-  'PajeDefineContainerType': 0,
-  'PajeDefineVariableType': 1,
-  'PajeDefineLinkType': 4,
-  'PajeCreateContainer': 6,
-  'PajeDestroyContainer': 7,
-  'PajeSetVariable': 8,
-  'PajeStartLink': 14,
-  'PajeEndLink': 15,
+  'PajeDefineContainerType': '0',
+  'PajeDefineVariableType': '1',
+  'PajeDefineLinkType': '4',
+  'PajeCreateContainer': '6',
+  'PajeDestroyContainer': '7',
+  'PajeSetVariable': '8',
+  'PajeStartLink': '14',
+  'PajeEndLink': '15',
 }
 
 #=============================
@@ -200,7 +201,6 @@ def tracingPcap(vm: list, fpcap_input: IOBase, vm_list: list, f_output: IOBase, 
             link = f'{vm["name"]}:{UNKNOWN_HOST}'
             order = links_dict.setdefault(link, 0)
             outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', unk_output)
-            outputPAJEEndLink((tt_seconds),UNKNOWN_HOST, size, f'{link}|{order}', unk_output)
             links_dict[link] += 1
 
         # Check if vm is the receiver of the message.
@@ -224,7 +224,6 @@ def generateTraceFiles(host: dict, vm_list: list, unk_output):
     with open(vm['trace_path'], 'w') as f_output:
       c_m_in.seek(0)
 
-      print("# CPU / MEM TRACES", file=f_output)
       tracing(vm, c_m_in, host['pcap_source'], vm_list, f_output, unk_output)
 
     print('\tDone!')
@@ -256,13 +255,27 @@ def agrupateTraces(envs: dict):
         r_trace.write(f'# --- {vm["name"]} ---\n')
         with open(vm['trace_path'], 'r') as vm_trace:
           for line in vm_trace:
+            
             r_trace.write(line)
+            
+            line_cols = re.split(' |:|\|', line)
+            # If 'line' represents a packet send (PajeStartLink), write the complement (PajeEndLink) in 'root.trace' for proper visualization with ViTE. 
+            if(line_cols[0] == PAJE_CODES['PajeStartLink']):
+              outputPAJEEndLink(float(line_cols[1]), line_cols[7], int(line_cols[5]), f'{line_cols[6]}:{line_cols[7]}|{line_cols[8][:-1]}', r_trace)
+              
         r_trace.write('\n\n')
     
     r_trace.write('\n# -----------------------------------------------\n# --- Aggregating Unknown Host Communications ---\n# -----------------------------------------------\n')
     with open(envs['unknown_trace'], 'r') as unknown_trace:
       for line in unknown_trace:
         r_trace.write(line)
+        
+        line_cols = re.split(' |:|\|', line)
+        # If 'line' represents a packet send (PajeStartLink), write the complement (PajeEndLink) in 'root.trace' for proper visualization with ViTE. 
+        if(line_cols[0] == PAJE_CODES['PajeStartLink']):
+          outputPAJEEndLink(float(line_cols[1]), line_cols[7], int(line_cols[5]), f'{line_cols[6]}:{line_cols[7]}|{line_cols[8][:-1]}', r_trace)
+          print(line)
+          print(line_cols)
 
     print('Done!')
           
