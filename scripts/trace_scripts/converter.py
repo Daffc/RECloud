@@ -107,23 +107,25 @@ def outputPAJECreateContainer(time: float, container_name: str, container_type: 
   print(PAJE_CODES["PajeCreateContainer"], time, container_name, container_type, container_parent, container_name, file=file)
   
 
-# Generating CPU/MEM trace consumption from 'f_input' into 'f_output'
-def tracingCPUMEM(vm: dict, f_input: IOBase, f_output: IOBase):
+# Generating CPU, MEM and Network trace consumption from 'fcm_input' and 'fpcap_input' into 'f_output'.
+# For each CPU/MEM trace timestamp interval, trace packets that has been sent by 'vm' in this interval.  
+def tracing(vm: dict, fcm_input: IOBase, fpcap_input: IOBase, vm_list: list, f_output: IOBase, unk_output: IOBase):
   
-  # Checking file first line.
-  line = f_input.readline()
+  # Checking 'fcm_input' file first line.
+  line = fcm_input.readline()
   line_cols = line.split(';')
 
   if(line_cols[1] != CPU_MEM_START):
-    sys.exit(f"Wrong file format:'{f_input.name}'.")
+    sys.exit(f"Wrong file format:'{fcm_input.name}'.")
 
   previous_time = datetime.strptime(line_cols[0][0:30], CPU_MEM_TIME_MASK)
   total_time = timedelta()
+  prev_tt_seconds = 0.0
   
-  for line in f_input.readlines():
+  for line in fcm_input.readlines():
     line_cols = line.split(';')
 
-    # Checking file last line.
+    # Checking if it's 'fcm_input' last line.
     if(line_cols[1] == CPU_MEM_END):
       break
     
@@ -138,22 +140,31 @@ def tracingCPUMEM(vm: dict, f_input: IOBase, f_output: IOBase):
 
       # If entry corresponds to the current vm, register values.
       if(vm_cols[0] == vm["name"]):
-        outputPAJEVariable(tt_seconds, vm["name"], 'MEM', vm_cols[1], f_output)
+        # Add CPU trace for 'tt_seconds' timestamp.
         outputPAJEVariable(tt_seconds, vm["name"], 'CPU', vm_cols[3], f_output)
+        
+        # Adding Network traces  that occurs in between 'prev_tt_seconds' and 'tt_seconds' interval.
+        tracingPcap(vm, fpcap_input, vm_list, f_output, unk_output, prev_tt_seconds, tt_seconds)
 
-# Generating NETWORK trace traffict from 'f_input' into 'f_output', if vm commuticates with unkow host, output is redirected to 'unk_dsc'
-def tracingPcap(vm: list, f_input: IOBase, vm_list: list, f_output: IOBase, unk_output: IOBase):
+        # Add MEM trace for 'tt_seconds' timestamp.
+        outputPAJEVariable(tt_seconds, vm["name"], 'MEM', vm_cols[1], f_output)
 
-  pkt = PcapReader(f_input).next()
+    # Update 'prev_tt_seconds'
+    prev_tt_seconds = tt_seconds
+
+# Generating NETWORK trace traffict from 'fpcap_input' into 'f_output' if paket timestamp is between 'begin_interval' and 'end_interval'.
+# If vm commuticates with unknow host, output is redirected to 'unk_dsc'.
+def tracingPcap(vm: list, fpcap_input: IOBase, vm_list: list, f_output: IOBase, unk_output: IOBase, begin_interval, end_interval):
+
+  pkt = PcapReader(fpcap_input).next()
 
   previous_time = datetime.fromtimestamp(float(pkt.time))
   total_time = timedelta()
 
   links_dict = {}
   
-
   # Looping through each packet (pkt) in pcap file.
-  for pkt in PcapReader(f_input):
+  for pkt in PcapReader(fpcap_input):
 
     # Check if the current packet (pkt) has an IP protocol header.
     if(IP in pkt):
@@ -168,35 +179,39 @@ def tracingPcap(vm: list, f_input: IOBase, vm_list: list, f_output: IOBase, unk_
       receiver = pkt[IP].dst
 
       size = pkt.wirelen 
+      
+      # If pkt timestamp is grater than 'end_interval', exit from function.
+      if(tt_seconds > end_interval):
+        return
+      
+      # If pkt timestamp is between 'begin_interval' and 'end_interval', write in file.  
+      if(tt_seconds > begin_interval):
+        # Check if vm is the sender of the message.
+        if(sender == vm["ip"]):
+          vm_counterpart = searchVM(vm_list, "ip", receiver)
+          # Check if the counterpar is another vm from experiment.
+          if(vm_counterpart):
+            link = f'{vm["name"]}:{vm_counterpart["name"]}'
+            order = links_dict.setdefault(link, 0)
+            outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
+            links_dict[link] += 1
+          # If the conterpart is unknown.
+          else:
+            link = f'{vm["name"]}:{UNKNOWN_HOST}'
+            order = links_dict.setdefault(link, 0)
+            outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', unk_output)
+            outputPAJEEndLink((tt_seconds),UNKNOWN_HOST, size, f'{link}|{order}', unk_output)
+            links_dict[link] += 1
 
-      # Check if vm is the sender of the message.
-      if(sender == vm["ip"]):
-        vm_counterpart = searchVM(vm_list, "ip", receiver)
-        # Check if the counterpar is another vm from experiment.
-        if(vm_counterpart):
-          link = f'{vm["name"]}:{vm_counterpart["name"]}'
-          order = links_dict.setdefault(link, 0)
-          outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
-          outputPAJEEndLink((tt_seconds),vm_counterpart["name"], size, f'{link}|{order}', f_output)
-          links_dict[link] += 1
-        # If the conterpart is unknown.
-        else:
-          link = f'{vm["name"]}:{UNKNOWN_HOST}'
-          order = links_dict.setdefault(link, 0)
-          outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', unk_output)
-          outputPAJEEndLink((tt_seconds),UNKNOWN_HOST, size, f'{link}|{order}', unk_output)
-          links_dict[link] += 1
-
-      # Check if vm is the receiver of the message.
-      if(receiver == vm["ip"]):
-        vm_counterpart = searchVM(vm_list, "ip", sender) 
-        # Check if the counterpar isnt't another vm from experiment (UNKNOWN_HOST).    
-        if(not vm_counterpart):
-          link = f'{UNKNOWN_HOST}:{vm["name"]}'
-          order = links_dict.setdefault(link, 0)
-          outputPAJEStartLink((tt_seconds),UNKNOWN_HOST, size, f'{link}|{order}', unk_output)
-          outputPAJEEndLink(tt_seconds,vm["name"], size, f'{link}|{order}', unk_output)
-          links_dict[link] += 1
+        # Check if vm is the receiver of the message.
+        if(receiver == vm["ip"]):
+          vm_counterpart = searchVM(vm_list, "ip", sender) 
+          # Check if the counterpar isnt't another vm from experiment (UNKNOWN_HOST).    
+          if(not vm_counterpart):
+            link = f'{UNKNOWN_HOST}:{vm["name"]}'
+            order = links_dict.setdefault(link, 0)
+            outputPAJEStartLink((tt_seconds), UNKNOWN_HOST, size, f'{link}|{order}', unk_output)
+            links_dict[link] += 1
 
 # Calling trace generators for each vm into 'host'.
 def generateTraceFiles(host: dict, vm_list: list, unk_output):
@@ -210,10 +225,7 @@ def generateTraceFiles(host: dict, vm_list: list, unk_output):
       c_m_in.seek(0)
 
       print("# CPU / MEM TRACES", file=f_output)
-      tracingCPUMEM(vm, c_m_in, f_output)
-      
-      print("\n# PCAP TRACES", file=f_output)
-      tracingPcap(vm, host['pcap_source'], vm_list, f_output, unk_output)
+      tracing(vm, c_m_in, host['pcap_source'], vm_list, f_output, unk_output)
 
     print('\tDone!')
   
