@@ -51,7 +51,7 @@ def recoverHostData():
 
 def recoverVMData(data):
   
-  virtualMachines = []
+  virtual_machines = []
 
   conn = lh.libvirtConnect()
   doms = lh.recoverActiveDomains(conn)
@@ -81,7 +81,7 @@ def recoverVMData(data):
 
     _, maxmem, _, cpus, _ = dom.info()
     # Storing definind new VM entry in 'data'.
-    virtualMachines.append({
+    virtual_machines.append({
       'name': dom.name(),
       'id': dom.ID(),
       'UUID': dom.UUIDString(),
@@ -95,7 +95,7 @@ def recoverVMData(data):
   
   conn.close()
 
-  return virtualMachines
+  return virtual_machines
 
 def storeDataJson(data):
   # Storing all the 'data' information in 'envirionment.json'
@@ -121,7 +121,7 @@ if __name__ == '__main__':
   # Initiating json structure
   data = recoverHostData()
 
-  data["virtualMachines"] = recoverVMData(data)
+  data["virtual_machines"] = recoverVMData(data)
   
   storeDataJson(data)
   

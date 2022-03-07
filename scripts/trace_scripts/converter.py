@@ -55,7 +55,7 @@ def agregatePaths(envs: dict, input_folder: str, output_folder: str):
     host['trace_folder'] = f'{output_folder}/traces/{EXPERIMENT_ID}/{host["hostname"]}'
     host['cpu_mem_source'] = f'{input_folder}/{host["hostname"]}/cpu_mem_output.txt'
     host['pcap_source'] = f'{input_folder}/{host["hostname"]}/network_output.pcap'
-    for vm in host['virtualMachines']:
+    for vm in host['virtual_machines']:
       vm['trace_path'] = f'{host["trace_folder"]}/{vm["name"]}.trace'
 
 # Recovering environment data from json to dictionary.
@@ -78,7 +78,7 @@ def generateVmList(envs: dict):
   vm_list = []
 
   for host in envs['hosts']:
-    vm_list.extend(host["virtualMachines"])
+    vm_list.extend(host["virtual_machines"])
 
   return vm_list
 
@@ -219,7 +219,7 @@ def generateTraceFiles(host: dict, vm_list: list, unk_output):
   c_m_in = open(host['cpu_mem_source'], 'r')
   
   # PARALELIZATION POINT.
-  for vm in host['virtualMachines']:
+  for vm in host['virtual_machines']:
     print(f'\tGenerating Traces for {vm["name"]}...')
     with open(vm['trace_path'], 'w') as f_output:
       c_m_in.seek(0)
@@ -244,14 +244,14 @@ def agrupateTraces(envs: dict):
     outputPAJECreateContainer(0.0, UNKNOWN_HOST, 'NODE', 'root', r_trace)
     for host in envs['hosts']:
       outputPAJECreateContainer(0.0, host['hostname'], 'NODE', 'root', r_trace)
-      for vm in host['virtualMachines']:
+      for vm in host['virtual_machines']:
         outputPAJECreateContainer(0.0, vm['name'], 'VM', host['hostname'], r_trace)
         outputPAJEVariable(0.0, vm["name"], 'MEM', 0, r_trace)
         outputPAJEVariable(0.0, vm["name"], 'CPU', 0, r_trace)
                                                                           
     r_trace.write('\n# -----------------------------------------\n# --- Aggregating Virtual Machines Data ---\n# -----------------------------------------\n')
     for host in envs['hosts']:
-      for vm in host['virtualMachines']:
+      for vm in host['virtual_machines']:
         r_trace.write(f'# --- {vm["name"]} ---\n')
         with open(vm['trace_path'], 'r') as vm_trace:
           for line in vm_trace:
