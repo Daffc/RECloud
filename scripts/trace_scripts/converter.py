@@ -123,6 +123,9 @@ def tracing(vm: dict, fcm_input: IOBase, fpcap_input: IOBase, vm_list: list, f_o
   total_time = timedelta()
   prev_tt_seconds = 0.0
   
+  # Maps link comunication "vm_origin:vm_dest" to its packet order.
+  vm_link_map = {}
+
   for line in fcm_input.readlines():
     line_cols = line.split(';')
 
@@ -145,7 +148,7 @@ def tracing(vm: dict, fcm_input: IOBase, fpcap_input: IOBase, vm_list: list, f_o
         outputPAJEVariable(tt_seconds, vm["name"], 'CPU', vm_cols[3], f_output)
         
         # Adding Network traces  that occurs in between 'prev_tt_seconds' and 'tt_seconds' interval.
-        tracingPcap(vm, fpcap_input, vm_list, f_output, unk_output, prev_tt_seconds, tt_seconds)
+        tracingPcap(vm, fpcap_input, vm_list, vm_link_map, f_output, unk_output, prev_tt_seconds, tt_seconds)
 
         # Add MEM trace for 'tt_seconds' timestamp.
         outputPAJEVariable(tt_seconds, vm["name"], 'MEM', vm_cols[1], f_output)
@@ -155,14 +158,12 @@ def tracing(vm: dict, fcm_input: IOBase, fpcap_input: IOBase, vm_list: list, f_o
 
 # Generating NETWORK trace traffict from 'fpcap_input' into 'f_output' if paket timestamp is between 'begin_interval' and 'end_interval'.
 # If vm commuticates with unknow host, output is redirected to 'unk_dsc'.
-def tracingPcap(vm: list, fpcap_input: IOBase, vm_list: list, f_output: IOBase, unk_output: IOBase, begin_interval, end_interval):
+def tracingPcap(vm: list, fpcap_input: IOBase, vm_list: list, vm_link_map, f_output: IOBase, unk_output: IOBase, begin_interval, end_interval):
 
   pkt = PcapReader(fpcap_input).next()
 
   previous_time = datetime.fromtimestamp(float(pkt.time))
   total_time = timedelta()
-
-  links_dict = {}
   
   # Looping through each packet (pkt) in pcap file.
   for pkt in PcapReader(fpcap_input):
@@ -193,15 +194,15 @@ def tracingPcap(vm: list, fpcap_input: IOBase, vm_list: list, f_output: IOBase, 
           # Check if the counterpar is another vm from experiment.
           if(vm_counterpart):
             link = f'{vm["name"]}:{vm_counterpart["name"]}'
-            order = links_dict.setdefault(link, 0)
+            order = vm_link_map.setdefault(link, 0)
             outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
-            links_dict[link] += 1
+            vm_link_map[link] += 1
           # If the conterpart is unknown.
           else:
             link = f'{vm["name"]}:{UNKNOWN_HOST}'
-            order = links_dict.setdefault(link, 0)
+            order = vm_link_map.setdefault(link, 0)
             outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', unk_output)
-            links_dict[link] += 1
+            vm_link_map[link] += 1
 
         # Check if vm is the receiver of the message.
         if(receiver == vm["ip"]):
@@ -209,9 +210,9 @@ def tracingPcap(vm: list, fpcap_input: IOBase, vm_list: list, f_output: IOBase, 
           # Check if the counterpar isnt't another vm from experiment (UNKNOWN_HOST).    
           if(not vm_counterpart):
             link = f'{UNKNOWN_HOST}:{vm["name"]}'
-            order = links_dict.setdefault(link, 0)
+            order = vm_link_map.setdefault(link, 0)
             outputPAJEStartLink((tt_seconds), UNKNOWN_HOST, size, f'{link}|{order}', unk_output)
-            links_dict[link] += 1
+            vm_link_map[link] += 1
 
 # Calling trace generators for each vm into 'host'.
 def generateTraceFiles(host: dict, vm_list: list, unk_output):
