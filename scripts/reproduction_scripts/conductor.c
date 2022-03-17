@@ -282,6 +282,7 @@ int main(int argc, char *argv[]){
     printf("[%s] Stress Finished \n", stringifyTimespec(ts_sampling));
 
     // Killing stressors and freeing their management memory.
+    // NOTE: To profile with gprof, this line must be commented. 
     stopStressors(stressors, n_cpu_procs);
     free(stressors);
     fclose(f_trace);
