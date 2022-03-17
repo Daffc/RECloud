@@ -40,8 +40,8 @@ int preparePointerCPUMem(FILE *file){
 // Receiving the 'file' pointer, read the next line, looking for code 'PAJESETVARIABLE', if it matches, recovers timestamp, memory in bytes, and CPU usage.
 int followCPUMem(FILE *file, TTraceEntry *t_entry){
     char *code;
-
     char *line;
+
     size_t line_len;
     ssize_t read;
 
@@ -58,20 +58,41 @@ int followCPUMem(FILE *file, TTraceEntry *t_entry){
         free(line);
         return 0;
     }
-
     
     t_entry->timestamp = strtod(strtok(NULL," "), NULL);    // Recovering timestamp of sampling.
     strtok(NULL," ");                                       // Skipping virtual machine's name. 
-    strtok(NULL," ");                                       // Skipping 'MEM' label
-    t_entry->mem_kB = strtoul(strtok(NULL," "), NULL, 0);   // Recovering memory value (kilobytes) for the timestamp.
+    strtok(NULL," ");                                       // Skipping 'CPU' label
+    t_entry->cpu_perc = strtoul(strtok(NULL," "), NULL, 0); // Recovering CPU value for the timestamp.
 
-    // Reading next line (CPU variable for same timestamp.)
+
+    // Getting next line of the file.
     read = getline(&line, &line_len, file);
-    strtok(line," ");                                       // Skipping 'PAJESETVARIABLE' code.
+    // Recovering PAJE code of the line.
+    code = strtok (line," ");
+
+    // While Read line does not correspont to 'PAJESETVARIABLE', read the Packets that must be sent until timestamp (code = "14").
+    while(strcmp(code, PAJESETVARIABLE) != 0){
+
+        // 14 4.172639 LINK root testvm1-2 45 testvm1-2:testvm1-1|0
+        printf("\t\tCODE: %s\n", code);
+        printf("\t\t\tTIMESTAMP: %s\n", strtok(NULL," "));      // Recovering packet timestamp.
+        strtok(NULL," ");                                       // Skipping 'LINK' label.
+        strtok(NULL," ");                                       // Skipping 'root' label.
+        strtok(NULL," ");                                       // Skipping vm name.
+        printf("\t\t\tSIZE: %s\n", strtok(NULL," "));           // Recovering packet size.
+        strtok(NULL,":");                                       // Skipping vm name.
+        printf("\t\t\tTARGET: %s\n", strtok(NULL,"|"));         // Recovering packet target name.
+
+        // Getting next line of the file.
+        read = getline(&line, &line_len, file);
+        // Recovering PAJE code of the line.
+        code = strtok (line," ");
+    }
+
     strtok(NULL," ");                                       // Skipping timestamp (same of previous MEM entry).
     strtok(NULL," ");                                       // Skipping vm name.
-    strtok(NULL," ");                                       // Skipping 'CPU' labe
-    t_entry->cpu_perc = strtof(strtok(NULL," "), NULL);     // Recovering CPU value for the timestamp.
+    strtok(NULL," ");                                       // Skipping 'MEM' label
+    t_entry->mem_kB = strtof(strtok(NULL," "), NULL);       // Recovering memory value (kilobytes) for the timestamp.    
 
     free(line);
     
