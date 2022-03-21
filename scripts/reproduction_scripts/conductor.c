@@ -200,7 +200,8 @@ int main(int argc, char *argv[]){
     double db_delay;                    // Target delay between iterations (must be the same as the used to generate the reproduced trace).
 
     double db_acc;                      // Accumulates the time error between iterations in order to dissipate it along the reproduction.
-    struct timespec ts_interval;        // Actial time interval that will be applied to sleep function.
+    struct timespec ts_init;            // Stores time when trace reproduction was initiated.
+    struct timespec ts_interval;        // Actual time interval that will be applied to sleep function.
     struct timespec ts_prev;            // Current time of previour time sampling (ts_sampling).
 
     pthread_t *stressors;               // Pointer to array of descriptors of stressor threads.
@@ -249,7 +250,7 @@ int main(int argc, char *argv[]){
     stressors = malloc (n_cpu_procs * sizeof(pthread_t));
 
     // Setting environment to the same state as the first entry of the trace file.
-    followCPUMem(f_trace, &t_entry);
+    followCPUMem(f_trace, &t_entry, &ts_init);
     shared_mem_load_bytes = calculateSharedMemLoadBytes(t_entry.mem_kB, n_cpu_procs);
     shared_cpu_dec_load = calculateSharedCpuLoadDec(t_entry.cpu_perc, n_cpu_procs);
     initializeStressor(stressors, n_cpu_procs, &shared_mem_load_bytes, &shared_cpu_dec_load, &shared_delay_interval);
@@ -269,11 +270,14 @@ int main(int argc, char *argv[]){
 
     // Initializing variable to calculate elapsed time.
     clock_gettime(CLOCK_REALTIME, &ts_sampling);
-
+    
     // Defining a synthetic 'ts_prev' time spec value, in 'db_delay' seconds before 'ts_sampling'.
     ts_prev = timespecSubPositiveDouble(&ts_sampling, &db_delay);
 
-    while(followCPUMem(f_trace, &t_entry)){
+    // Storing time when trace reproduction was initiated.
+    ts_init = ts_sampling;
+
+    while(followCPUMem(f_trace, &t_entry, &ts_init)){
 
         printf("[%s]\n", stringifyTimespec(ts_sampling));
         printf("%lf, %llu, %f\n", t_entry.timestamp, t_entry.mem_kB, t_entry.cpu_perc);

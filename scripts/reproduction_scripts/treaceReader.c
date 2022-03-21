@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "treaceReader.h" 
+#include "timeLib.h"
 
 // Updates 'file' pointer until it points to the first occurrence of 'PajeSet Variable', meaning, the first trace of the Memory and CPU tuple.
 int preparePointerCPUMem(FILE *file){
@@ -38,7 +39,7 @@ int preparePointerCPUMem(FILE *file){
 }
 
 // Receiving the 'file' pointer, read the next line, looking for code 'PAJESETVARIABLE', if it matches, recovers timestamp, memory in bytes, and CPU usage.
-int followCPUMem(FILE *file, TTraceEntry *t_entry){
+int followCPUMem(FILE *file, TTraceEntry *t_entry, struct timespec *ts_init){
     char *code;
     char *line;
 
@@ -70,12 +71,14 @@ int followCPUMem(FILE *file, TTraceEntry *t_entry){
     // Recovering PAJE code of the line.
     code = strtok (line," ");
 
+    double tmp_aux;
     // While Read line does not correspont to 'PAJESETVARIABLE', read the Packets that must be sent until timestamp (code = "14").
     while(strcmp(code, PAJESETVARIABLE) != 0){
 
         // 14 4.172639 LINK root testvm1-2 45 testvm1-2:testvm1-1|0
         printf("\t\tCODE: %s\n", code);
-        printf("\t\t\tTIMESTAMP: %s\n", strtok(NULL," "));      // Recovering packet timestamp.
+        tmp_aux = strtod(strtok(NULL," "), NULL);
+        printf("\t\t\tTIMESTAMP: %f (%s) \n", tmp_aux, stringifyTimespec(timespecAddPositiveDouble(ts_init, &tmp_aux)));               // Recovering packet timestamp relative to begining of reproduction (ts_init).
         strtok(NULL," ");                                       // Skipping 'LINK' label.
         strtok(NULL," ");                                       // Skipping 'root' label.
         strtok(NULL," ");                                       // Skipping vm name.

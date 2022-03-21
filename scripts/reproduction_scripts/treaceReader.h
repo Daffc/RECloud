@@ -21,7 +21,7 @@
     int preparePointerCPUMem(FILE *file);
 
     // Receiving the 'file' pointer, read the next line, looking for code 'PajeSetVariable', if it matches, recovers timestamp, memory in bytes, and CPU usage.
-    int followCPUMem(FILE *file, TTraceEntry *t_entry);
+    int followCPUMem(FILE *file, TTraceEntry *t_entry, struct timespec *ts_init);
 
 #endif
 
