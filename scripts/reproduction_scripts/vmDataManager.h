@@ -1,5 +1,5 @@
-#ifndef __MEM_LIB__
-    #define __MEM_LIB__
+#ifndef __VM_DATA_LIB__
+    #define __VM_DATA_LIB__
 
     #define VM_NAME_SIZE 21
     #define IPV4_MAX_SIZE 16
@@ -38,8 +38,8 @@
     // Prints Virtual Machines Data List (debug).
     void printVmDataList(TVmDataList * vm_data_list);
 
-    // Reads JSON file located in "envs_path" and returns Virtual Machines Data List populated with virtual machines data.
-    TVmDataList * readEnvironmentsToVmDataList(char *envs_path);
+    // Reads JSON file "f_env" and returns Virtual Machines Data List populated with virtual machines data.
+    TVmDataList * readEnvironmentsToVmDataList(FILE *f_env);
 
     // Searches in Virtual Machines Data List the entry that contains key (name) returning the pointer to the found entry (TVmData *),  otherwise return NULL.
     TVmData * searchVmDataEntry(TVmDataList * vm_data_list, char * key);

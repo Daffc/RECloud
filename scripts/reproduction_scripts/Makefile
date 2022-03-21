@@ -1,12 +1,12 @@
 CC := gcc
-LDLIBS := -pthread -lm
+LDLIBS := -pthread -lm -ljson-c
 
 .DEFAULT_GOAL := all
 .PHONY := install all clean purge
 
 EXEC :=  conductor
 
-conductor: conductor.c timeLib.c treaceReader.c stressor.c memLib.c
+conductor: conductor.c timeLib.c treaceReader.c stressor.c memLib.c vmDataManager.c
 
 debugall: CFLAGS := -Wall -Wextra -fsanitize=leak,address -g -D DEBUG_MEM -D DEBUG_CPU
 debugall: all

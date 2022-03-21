@@ -3,7 +3,7 @@
 #include <string.h>
 #include <json-c/json.h>
 
-#include "vmTranslator.h"
+#include "vmDataManager.h"
 
 // Comparison function used by Quick Sort Algorithm (qsort) for Virtual Machines Data List ordering.
 int cmpVmOrder(const void* a, const void* b){
@@ -75,8 +75,7 @@ void printVmDataList(TVmDataList * vm_data_list){
 }
 
 // Reads JSON file located in "envs_path" and returns Virtual Machines Data List populated with virtual machines data.
-TVmDataList * readEnvironmentsToVmDataList(char *envs_path){
-    FILE    *fp_json;
+TVmDataList * readEnvironmentsToVmDataList(FILE *f_env){
 
     char    *buffer;
 
@@ -103,25 +102,16 @@ TVmDataList * readEnvironmentsToVmDataList(char *envs_path){
     // Virtual Machines Data List
     vm_data_list = initializeVMDataList();
 
-    // Opening File.
-    fp_json = fopen(envs_path, "r");
-    // Checking if the operation was successful.
-    if (fp_json == NULL) {
-        fprintf(stderr, "ERROR: Error while oppening environments file '%s'.\n", envs_path);
-        exit(1);
-    }
-
-    // Finding 'fp_json' file size.
-    fseek(fp_json, 0, SEEK_END);
-    file_size = ftell(fp_json); 
-    rewind(fp_json);
+    // Finding 'f_env' file size.
+    fseek(f_env, 0, SEEK_END);
+    file_size = ftell(f_env); 
+    rewind(f_env);
 
     // Allocating buffer.
     buffer = (char *) malloc(file_size);
 
     // Reading entire file to buffer and closing it.
-    fread(buffer, file_size, 1, fp_json);
-    fclose(fp_json);
+    fread(buffer, file_size, 1, f_env);
 
     // Parsing json content.
     parsed_json = json_tokener_parse(buffer);
@@ -131,7 +121,7 @@ TVmDataList * readEnvironmentsToVmDataList(char *envs_path){
 
     // Parsing 'hosts' from 'parsed_json'.
     if(!json_object_object_get_ex(parsed_json, "hosts", &hosts_array)){
-        fprintf(stderr, "ERROR: Unable to find 'hosts' key in '%s'.\n", envs_path);
+        fprintf(stderr, "ERROR: Unable to find 'hosts' key in environment file.\n");
         exit(1);
     }
     n_hosts = json_object_array_length(hosts_array);
@@ -142,13 +132,13 @@ TVmDataList * readEnvironmentsToVmDataList(char *envs_path){
         host = json_object_array_get_idx(hosts_array, i);
 
         if(!json_object_object_get_ex(host, "hostname", &hostname)){
-            fprintf(stderr, "ERROR: Unable to find 'hostname' key in '%s'.\n", envs_path);
+            fprintf(stderr, "ERROR: Unable to find 'hostname' key in environment file.\n");
             exit(1);
         }
 
         // Retriving 'vm_array' from host.
         if(!json_object_object_get_ex(host, "virtual_machines", &vm_array)){
-            fprintf(stderr, "ERROR: Unable to find 'virtual_machines' key in '%s'.\n", envs_path);
+            fprintf(stderr, "ERROR: Unable to find 'virtual_machines' key in environment file.\n");
             exit(1);
         }
         n_vms = json_object_array_length(vm_array);
@@ -160,11 +150,11 @@ TVmDataList * readEnvironmentsToVmDataList(char *envs_path){
 
             // Retriving 'name' and 'ip' from vm.
             if(!json_object_object_get_ex(vm, "name", &vm_name)){
-                fprintf(stderr, "ERROR: Unable to find 'name' key in '%s'.\n", envs_path);
+                fprintf(stderr, "ERROR: Unable to find 'name' key in environment file.\n");
                 exit(1);
             }
             if(!json_object_object_get_ex(vm, "ip", &vm_ip)){
-                fprintf(stderr, "ERROR: Unable to find 'name' key in '%s'.\n", envs_path);
+                fprintf(stderr, "ERROR: Unable to find 'name' key in environment file.\n");
                 exit(1);
             }
 
@@ -190,29 +180,4 @@ TVmData * searchVmDataEntry(TVmDataList * vm_data_list, char * key){
     res_vm = bsearch(key, vm_data_list->items, vm_data_list->size, sizeof(TVmData), cmpVmNameSearch);
 
     return res_vm;
-}
-
-int main(int argc, char **argv){
-
-    // ----------------- DEBUG ---------------------
-
-    TVmData *aux;
-
-    TVmDataList *vm_data_list;
-
-    // Allocating and populating Virtual Machine Data List.
-    vm_data_list = readEnvironmentsToVmDataList("environments.json");
-
-    // Odering Virtual Machine Data List. 
-    orderVmDataList(vm_data_list);
-
-    aux = searchVmDataEntry(vm_data_list, "testvm6-1");
-    
-    printf("------ SEARCH ------\n");
-    printVmData(aux);
-
-    freeVMDataList(vm_data_list);
-
-    // ----------------- DEBUG ---------------------
-
 }

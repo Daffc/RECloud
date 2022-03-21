@@ -11,6 +11,7 @@
 #include "treaceReader.h"
 #include "stressor.h"
 #include "memLib.h"
+#include "vmDataManager.h"
 
 #define MAX_DELAY 5
 #define MIN_DELAY 0.05
@@ -215,6 +216,8 @@ int main(int argc, char *argv[]){
     FILE *f_trace;                      // The file descriptor of trace that will be read.
     FILE *f_envs;                       // The file descriptor of environments file (json) that describes the reproducted environment.
 
+    TVmDataList *vm_data_list;
+
     // System information.
     unsigned char n_cpu_procs;          // Stores the number of physical cores of the system.
 
@@ -228,6 +231,9 @@ int main(int argc, char *argv[]){
 
     // Recovering number of "physical" cores from the system.
     n_cpu_procs = get_nprocs();  
+
+    // Recovering the array of virtual machines data from environment file.
+    vm_data_list = readEnvironmentsToVmDataList(f_envs);
 
     // Adjusting 'f_traces' pointer to the first CPU/MEM trace entry.
     if(!preparePointerCPUMem(f_trace)){
@@ -310,4 +316,5 @@ int main(int argc, char *argv[]){
     free(stressors);
     fclose(f_trace);
     fclose(f_envs);
+    freeVMDataList(vm_data_list);
 }
