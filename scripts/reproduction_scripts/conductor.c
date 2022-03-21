@@ -234,6 +234,9 @@ int main(int argc, char *argv[]){
 
     // Recovering the array of virtual machines data from environment file.
     vm_data_list = readEnvironmentsToVmDataList(f_envs);
+    
+    // Odering Virtual Machine Data List. 
+    orderVmDataList(vm_data_list);
 
     // Adjusting 'f_traces' pointer to the first CPU/MEM trace entry.
     if(!preparePointerCPUMem(f_trace)){
