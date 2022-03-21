@@ -22,14 +22,14 @@ double shared_cpu_dec_load;        // Variable that will store cpu percentage lo
 double shared_delay_interval;
 
 
-// Reads Arguments received by the program, informing help messages, 
-// defining input trace file.
-void parseArguments(int argc, char *argv[], FILE **input, double *delay){
+// Reads Arguments received by the program, informing help messages, defining input trace file, defininr input environments file.
+void parseArguments(int argc, char *argv[], FILE **f_trace, FILE **f_envs, double *delay){
     char c;
-    *input = NULL;
+    *f_trace = NULL;
+    *f_envs = NULL;
     *delay = 0.0;
 
-    while ((c = getopt (argc, argv, "hi:d:")) != -1)
+    while ((c = getopt (argc, argv, "ht:d:e:")) != -1)
     switch (c){
         // Helper Argument.
         case 'h': 
@@ -38,25 +38,40 @@ void parseArguments(int argc, char *argv[], FILE **input, double *delay){
                 "Program to reproduce  PAJE file trace that describes one virtual node of a cloud environment.\n\n"
                 "Optional arguments:\n"
                 "\t-h\tDisplay help Message.\n"
-                "\t-i\tPath to input file (trace file).\n"
+                "\t-t\tPath to input file (trace file).\n"
+                "\t-e\tPath to virtual environment file (json file).\n"
                 "\t-d\tThe time interval between sampling the CPU and Moemory statistics in seconds (must be between %.2lfs and %ds).\n", MIN_DELAY, MAX_DELAY
             );
 
             exit(0);
             break;
         
-        // Defining input trace file. 
-        case 'i':
+        // Defining 'f_trace' trace file. 
+        case 't':
             
-            // Defining file descriptor to the output file. 
-            *input = fopen(optarg,"r");
+            // Defining file descriptor to the input trace file. 
+            *f_trace = fopen(optarg,"r");
 
             // Checking if the operation was successful.
-            if (*input == NULL) {
+            if (*f_trace == NULL) {
                 fprintf(stderr, "ERROR: Error while oppening file '%s'.\n", optarg);
                 exit(1);
             }
             break;
+
+        // Defining 'f_env' environemnt.json file. 
+        case 'e':
+            
+            // Defining file descriptor to the intput environment file. 
+            *f_envs = fopen(optarg,"r");
+
+            // Checking if the operation was successful.
+            if (*f_envs == NULL) {
+                fprintf(stderr, "ERROR: Error while oppening file '%s'.\n", optarg);
+                exit(1);
+            }
+            break;
+        
 
         // Redefine delay between samples (default 0.5s).
         case 'd':
@@ -77,8 +92,10 @@ void parseArguments(int argc, char *argv[], FILE **input, double *delay){
         case '?':
             if (optopt == 'd')
                 fprintf (stderr, "ERROR: Option '-d' requires an argument in seconds between %.2lfs and %ds.\n", MIN_DELAY, MAX_DELAY);
-            if (optopt == 'i')
-                fprintf (stderr, "ERROR: Option '-i' requires an argument (path to PAJE trace file).\n");
+            if (optopt == 't')
+                fprintf (stderr, "ERROR: Option '-t' requires an argument (path to PAJE trace file).\n");
+            if (optopt == 'e')
+                fprintf (stderr, "ERROR: Option '-e' requires an argument (path to environment json file).\n");
             else if (isprint (optopt))
                 fprintf (stderr, "ERROR: Unknown option '-%c'.\n", optopt);
             else
@@ -90,8 +107,13 @@ void parseArguments(int argc, char *argv[], FILE **input, double *delay){
             abort();
     }
 
-    if (*input == NULL){
-        fprintf (stderr, "ERROR: Virtual machine trace file must be informed (option '-i [path_to_trace_file]')\n");
+    if (*f_trace == NULL){
+        fprintf (stderr, "ERROR: Virtual machine trace file must be informed (option '-t [path_to_trace_file]')\n");
+        exit(1);
+    }
+
+    if (*f_envs == NULL){
+        fprintf (stderr, "ERROR: Virtual environment json file must be informed (option '-e [path_to_environment_file]')\n");
         exit(1);
     }
 
@@ -191,13 +213,14 @@ int main(int argc, char *argv[]){
     TTraceEntry t_entry;                // Structure that stores information for trace entry according to Timestamp.
 
     FILE *f_trace;                      // The file descriptor of trace that will be read.
+    FILE *f_envs;                       // The file descriptor of environments file (json) that describes the reproducted environment.
 
     // System information.
     unsigned char n_cpu_procs;          // Stores the number of physical cores of the system.
 
 
     // parsing program arguments.
-    parseArguments(argc, argv, &f_trace, &db_delay);
+    parseArguments(argc, argv, &f_trace, &f_envs, &db_delay);
     
     // Initiating time control variables.
     db_acc = 0;                                     // The variable that accumulates error between sampling rounds.
@@ -286,4 +309,5 @@ int main(int argc, char *argv[]){
     stopStressors(stressors, n_cpu_procs);
     free(stressors);
     fclose(f_trace);
+    fclose(f_envs);
 }
