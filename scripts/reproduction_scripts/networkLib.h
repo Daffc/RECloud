@@ -14,8 +14,8 @@
 
     typedef struct t_Message_Queue{
         TMessage        *messages;
-        unsigned        size,
-                        front,
+        unsigned        size;
+        long            front,
                         rear;
     }TMessageQueue;
 
