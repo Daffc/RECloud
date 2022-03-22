@@ -14,7 +14,7 @@ char * stringifyTimespec(struct timespec timestamp){
 
     ts = *localtime(&now);
     strftime(buf, sizeof(buf), "%a %Y-%m-%d %H:%M:%S", &ts);
-    sprintf(buf + strlen (buf), ".%lu", timestamp.tv_nsec);
+    sprintf(buf + strlen (buf), ".%09lu", timestamp.tv_nsec);
 
     return buf;
 }
@@ -134,7 +134,7 @@ struct timespec timespecAddPositiveDouble(struct timespec *ts_base, double *db_v
     result.tv_sec = ts_base->tv_sec;
     nsec = ts_base->tv_nsec + ((*(db_value) - trunc_value) * BILLION);
 
-    // If 'nsec'  greater is than BILLION, add on second to the result and adjust 'nsec'.
+    // If 'nsec'  is greater than BILLION, add on second to the result and adjust 'nsec'.
     if(nsec > BILLION){
         result.tv_sec += 1;
         nsec -= BILLION;
