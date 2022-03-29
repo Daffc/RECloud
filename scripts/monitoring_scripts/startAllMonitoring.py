@@ -54,11 +54,10 @@ def setAllEnvironments(clients, password):
   print('OK!', flush=True)
 
 # Initiates the monitoring processes for all 'clients' machines.
-def runAllMonitoring(clients, password):
+def runAllMonitoring(clients, password, sampling_delay):
 
   print(f'Calling \'startMonitoring.py\' for all clients ({clients.hosts})... ', flush=True)
-  # clients.run_command('echo '+ password +' | sudo -S -- sh -c ". ~/tg_scripts/venv/bin/activate && ~/tg_scripts/scripts/monitoring_scripts/startMonitoring.py" ')
-  clients.run_command(f'echo {password} | sudo -S -- sh -c ". {VENV_PATH} && {MONITOR_PATH}"')
+  clients.run_command(f'echo {password} | sudo -S -- sh -c ". {VENV_PATH} && {MONITOR_PATH} -d {sampling_delay}"')
 
 # Calling Chrony to synchonize nodes pointed be 'clients'
 def synchronizeNodes(clients, password):
@@ -136,16 +135,17 @@ def parsingArguments():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, description="Program to start CPU, Memory and Network monitorinment across the node machines listed into 'host_file' trough 'startMonitoring.py' in each of them.\nAter the conclusion of the monitoring proceses, the monitoring  and the environment data are stored into 'output_folder'.")
     parser.add_argument("host_file", help="Path to file that lists the hosts that will be monitored.")
     parser.add_argument("output_folder", help="Path to folder that will store the result data.")
+    parser.add_argument("-d", default=0.5, required=False, help="The time interval between sampling the CPU and Memory statistics in seconds (must bee between 5 and 0.05, default is 0.5)")
     args = parser.parse_args()
 
-    return args.host_file, args.output_folder
+    return args.host_file, args.output_folder, float(args.d)
 
 #=============================
 #       Main code
 #=============================
 if __name__ == "__main__":
 
-  host_file, output_folder = parsingArguments()
+  host_file, output_folder, sampling_delay = parsingArguments()
 
   host_file = os.path.normpath(host_file)
   output_folder = os.path.normpath(output_folder)
@@ -169,7 +169,7 @@ if __name__ == "__main__":
   synchronizeNodes(clients, password)
 
   # Run script 'startMonitoring.py' for all 'clients'
-  runAllMonitoring(clients, password)
+  runAllMonitoring(clients, password, sampling_delay)
 
   # Waiting for user input in order to stop monitoring process for all the 'client' machines
   print(f'\'CTRL+C\' or kill this process to stop all the monitoring processes.')
