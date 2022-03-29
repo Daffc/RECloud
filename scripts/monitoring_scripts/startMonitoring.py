@@ -107,4 +107,4 @@ if __name__ == "__main__":
   # Wainting for subprocesses conclusion.
   waitSubprocessesDie([cpu_mem.pid, tcpdump.pid])
   
-  print(f'Exiting monitoring processes halder.')
+  print(f'Exiting monitoring processes handler.')

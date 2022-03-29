@@ -275,8 +275,6 @@ def agrupateTraces(envs: dict):
         # If 'line' represents a packet send (PajeStartLink), write the complement (PajeEndLink) in 'root.trace' for proper visualization with ViTE. 
         if(line_cols[0] == PAJE_CODES['PajeStartLink']):
           outputPAJEEndLink(float(line_cols[1]), line_cols[7], int(line_cols[5]), f'{line_cols[6]}:{line_cols[7]}|{line_cols[8][:-1]}', r_trace)
-          print(line)
-          print(line_cols)
 
     print('Done!')
           
