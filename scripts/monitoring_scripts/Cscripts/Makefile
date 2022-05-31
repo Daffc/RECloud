@@ -1,5 +1,5 @@
 CC := gcc
-LDLIBS := -lvirt -lm
+LDLIBS := -lvirt -lm -O3
 
 .DEFAULT_GOAL := all
 .PHONY := install all clean purge
