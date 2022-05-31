@@ -92,6 +92,14 @@ if __name__ == "__main__":
   killer = GracefulKiller()
 
   while not killer.kill_now:
+
+    if(cpu_mem.poll() != None):
+        print(f'ERROR: Cpu / Memory probe is not running. Finishing monitoring processes.',  flush=True)
+        break;
+    if(tcpdump.poll() != None):
+        print(f'ERROR: Network probe (tcpdump) is not running. Finishing monitoring processes.',  flush=True)
+        break
+
     time.sleep(1)
 
   print(f'Killing monitoring processes cpuMemMonitor (PID=[{cpu_mem.pid}]) and tcpdump ([{tcpdump.pid}]])...')
