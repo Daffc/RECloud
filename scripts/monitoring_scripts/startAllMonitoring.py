@@ -5,7 +5,7 @@ import sys
 import time
 import setproctitle
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 
 #=============================
@@ -136,16 +136,17 @@ def parsingArguments():
     parser.add_argument("host_file", help="Path to file that lists the hosts that will be monitored.")
     parser.add_argument("output_folder", help="Path to folder that will store the result data.")
     parser.add_argument("-d", default=0.5, required=False, help="The time interval between sampling the CPU and Memory statistics in seconds (must bee between 5 and 0.05, default is 0.5)")
+    parser.add_argument("-t", default=0, required=False, help="Defines monitoring interval of monitoring (in seconds).")
     args = parser.parse_args()
 
-    return args.host_file, args.output_folder, float(args.d)
+    return args.host_file, args.output_folder, float(args.d), float(args.t)
 
 #=============================
 #       Main code
 #=============================
 if __name__ == "__main__":
 
-  host_file, output_folder, sampling_delay = parsingArguments()
+  host_file, output_folder, sampling_delay, monitoring_interval = parsingArguments()
 
   host_file = os.path.normpath(host_file)
   output_folder = os.path.normpath(output_folder)
@@ -155,7 +156,7 @@ if __name__ == "__main__":
 
   user, password = helper.recoverCredentials()
   hosts = helper.recoverHosts(host_file, FileType.TEXT)
-  
+ 
   # Definind Connection with Node Machines
   clients = helper.defineConnection(user, password, hosts)
 
@@ -174,7 +175,12 @@ if __name__ == "__main__":
   # Waiting for user input in order to stop monitoring process for all the 'client' machines
   print(f'\'CTRL+C\' or kill this process to stop all the monitoring processes.')
   killer = GracefulKiller()
-  while not killer.kill_now:
+  
+  if(monitoring_interval):
+    exit_time = datetime.now() + timedelta(seconds=monitoring_interval);
+    print(f'Monitoring interval informed. Estimated time to completion {exit_time.strftime("%d/%m/%Y %H:%M:%S")}')
+  
+  while(not killer.kill_now):
 
     time.sleep(1)
 
@@ -190,6 +196,11 @@ if __name__ == "__main__":
         print(f'ERROR: Process "startMonitoring" is not running for host [{host_name}]. Finishing monitoring processes.',  flush=True)
 
       break;   
+
+    # If 'monitoring_interval' is defined, check if reached final time interval.
+    if(monitoring_interval):
+      if(datetime.now() >= exit_time):
+        break;
 
   # Killing monitoring processes for all the 
   killMonitoringProcesses(clients, password)
