@@ -21,6 +21,7 @@ ENV_EXEC_PATH = os.path.normpath(f'{PROGRAM_PATH}/../environment_scripts/environ
 COMPILE_PATH = os.path.normpath(f'{PROGRAM_PATH}/Cscripts')
 MONITOR_PATH = os.path.normpath(f'{PROGRAM_PATH}/startMonitoring.py')
 DATA_PATH = os.path.normpath(f'{PROGRAM_PATH}/../data')
+ENVIRONMENT_PATH = os.path.normpath(f'{DATA_PATH}/environment.json')
 
 WAIT_END_INTERVAL = 0.5
 #=============================
@@ -57,7 +58,7 @@ def setAllEnvironments(clients, password):
 def runAllMonitoring(clients, password, sampling_delay):
 
   print(f'Calling \'startMonitoring.py\' for all clients ({clients.hosts})... ', flush=True)
-  clients.run_command(f'echo {password} | sudo -S -- sh -c ". {VENV_PATH} && {MONITOR_PATH} -d {sampling_delay}"')
+  clients.run_command(f'echo {password} | sudo -S -- sh -c ". {VENV_PATH} && {MONITOR_PATH} -d {sampling_delay} -e {ENVIRONMENT_PATH}"')
 
 # Calling Chrony to synchonize nodes pointed be 'clients'
 def synchronizeNodes(clients, password):
