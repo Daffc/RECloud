@@ -110,7 +110,7 @@ def outputPAJECreateContainer(time: float, container_name: str, container_type: 
 
 # Generating CPU, MEM and Network trace consumption from 'fcm_input' and 'fpcap_input' into 'f_output'.
 # For each CPU/MEM trace timestamp interval, trace packets that has been sent by 'vm' in this interval.  
-def tracing(vm: dict, fcm_input: IOBase, fpcap_input: IOBase, vm_list: list, f_output: IOBase, unk_output: IOBase):
+def tracing(target_vm: dict, fcm_input: IOBase, fpcap_input: IOBase, vm_list: list, f_output: IOBase, unk_output: IOBase):
   
   # Checking 'fcm_input' file first line.
   line = fcm_input.readline()
@@ -119,12 +119,20 @@ def tracing(vm: dict, fcm_input: IOBase, fpcap_input: IOBase, vm_list: list, f_o
   if(line_cols[1] != CPU_MEM_START):
     sys.exit(f"Wrong file format:'{fcm_input.name}'.")
 
-  previous_time = datetime.strptime(line_cols[0][0:30], CPU_MEM_TIME_MASK)
+  # Iniitiating time variables
+  start_time = datetime.strptime(line_cols[0][0:30], CPU_MEM_TIME_MASK)
   total_time = timedelta()
-  prev_tt_seconds = 0.0
   
   # Maps link comunication "vm_origin:vm_dest" to its packet order.
   vm_link_map = {}
+
+  # Initiating packets list 'all_pkts' (from pcap file 'fpcap_input')
+  all_pkts = PcapReader(fpcap_input)
+  # Recover first packet into 'next_pkt', setting as None there in no packet (except StopIteration).
+  try:
+    next_pkt = all_pkts.next()
+  except StopIteration:
+    next_pkt = None
 
   for line in fcm_input.readlines():
     line_cols = line.split(';')
@@ -134,85 +142,84 @@ def tracing(vm: dict, fcm_input: IOBase, fpcap_input: IOBase, vm_list: list, f_o
       break
     
     curr_time = datetime.strptime(line_cols[0][0:30], CPU_MEM_TIME_MASK)
-    total_time += (curr_time - previous_time)
+    total_time = (curr_time - start_time)
     tt_seconds = total_time.total_seconds()
-    previous_time = curr_time
     
     # Loop through each vm entry in "line"
     for vm_entry in line_cols[1:]:
       vm_cols = vm_entry.split()
 
       # If entry corresponds to the current vm, register values.
-      if(vm_cols[0] == vm["name"]):
+      if(vm_cols[0] == target_vm["name"]):
         # Add CPU trace for 'tt_seconds' timestamp.
-        outputPAJEVariable(tt_seconds, vm["name"], 'CPU', vm_cols[3], f_output)
+        outputPAJEVariable(tt_seconds, target_vm["name"], 'CPU', vm_cols[3], f_output)
         
-        # Adding Network traces  that occurs in between 'prev_tt_seconds' and 'tt_seconds' interval.
-        tracingPcap(vm, fpcap_input, vm_list, vm_link_map, f_output, unk_output, prev_tt_seconds, tt_seconds)
+        # Gattering and writing Network traces that occurs until 'curr_time'.
+        next_pkt = tracingPcap(target_vm, next_pkt, all_pkts, vm_list, vm_link_map, f_output, unk_output, start_time, curr_time)
 
         # Add MEM trace for 'tt_seconds' timestamp.
-        outputPAJEVariable(tt_seconds, vm["name"], 'MEM', vm_cols[1], f_output)
+        outputPAJEVariable(tt_seconds, target_vm["name"], 'MEM', vm_cols[1], f_output)
 
-    # Update 'prev_tt_seconds'
-    prev_tt_seconds = tt_seconds
-
-# Generating NETWORK trace traffict from 'fpcap_input' into 'f_output' if paket timestamp is between 'begin_interval' and 'end_interval'.
-# If vm commuticates with unknow host, output is redirected to 'unk_dsc'.
-def tracingPcap(vm: list, fpcap_input: IOBase, vm_list: list, vm_link_map, f_output: IOBase, unk_output: IOBase, begin_interval, end_interval):
-
-  pkt = PcapReader(fpcap_input).next()
-
-  previous_time = datetime.fromtimestamp(float(pkt.time))
-  total_time = timedelta()
+# Generating NETWORK trace traffict into 'f_output' while 'next_pkt' time and consecutives packets of 'all_pkts' are under 'end_time'.
+# If 'target_vm' commuticates with unknow host, output is redirected to 'unk_output'.
+def tracingPcap(target_vm: list, next_pkt, all_pkts, vm_list: list, vm_link_map, f_output: IOBase, unk_output: IOBase, start_time, end_time):
   
-  # Looping through each packet (pkt) in pcap file.
-  for pkt in PcapReader(fpcap_input):
+  # If there are no more packtes (next_pkt == None) or 'next_pkt.time' is grater than 'end_time', 
+  # exits from function returning 'next_pkt' value.
+  if((next_pkt == None) or (datetime.fromtimestamp(float(next_pkt.time)) > end_time)):
+    return next_pkt
 
-    # Check if the current packet (pkt) has an IP protocol header.
-    if(IP in pkt):
+  # Gettering and checking packets.
+  while next_pkt:
 
-      # Recovering data from packt  
-      curr_time = datetime.fromtimestamp(float(pkt.time))
-      total_time += (curr_time - previous_time)
+    # Check if the next_pkt has an IP protocol header.
+    if(IP in next_pkt):
+
+      # Recovering data from 'next_pkt'  
+      curr_time = datetime.fromtimestamp(float(next_pkt.time))
+      total_time = (curr_time - start_time)
       tt_seconds = total_time.total_seconds()
-      previous_time = curr_time
 
-      sender = pkt[IP].src
-      receiver = pkt[IP].dst
+      sender = next_pkt[IP].src
+      receiver = next_pkt[IP].dst
 
-      size = pkt.wirelen 
+      size = next_pkt.wirelen 
       
-      # If pkt timestamp is grater than 'end_interval', exit from function.
-      if(tt_seconds > end_interval):
-        return
+      # If 'next_pkt' time is grater than 'end_time', exits from function returning 'next_pkt' value.
+      if(curr_time > end_time):
+        return next_pkt
       
-      # If pkt timestamp is between 'begin_interval' and 'end_interval', write in file.  
-      if(tt_seconds > begin_interval):
-        # Check if vm is the sender of the message.
-        if(sender == vm["ip"]):
-          vm_counterpart = searchVM(vm_list, "ip", receiver)
-          # Check if the counterpar is another vm from experiment.
-          if(vm_counterpart):
-            link = f'{vm["name"]}:{vm_counterpart["name"]}'
-            order = vm_link_map.setdefault(link, 0)
-            outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', f_output)
-            vm_link_map[link] += 1
-          # If the conterpart is unknown.
-          else:
-            link = f'{vm["name"]}:{UNKNOWN_HOST}'
-            order = vm_link_map.setdefault(link, 0)
-            outputPAJEStartLink(tt_seconds,vm["name"], size, f'{link}|{order}', unk_output)
-            vm_link_map[link] += 1
+      # Check if vm is the sender of the message.
+      if(sender == target_vm["ip"]):
+        vm_counterpart = searchVM(vm_list, "ip", receiver)
+        # Check if the counterpar is another vm from experiment.
+        if(vm_counterpart):
+          link = f'{target_vm["name"]}:{vm_counterpart["name"]}'
+          order = vm_link_map.setdefault(link, 0)
+          outputPAJEStartLink(tt_seconds,target_vm["name"], size, f'{link}|{order}', f_output)
+          vm_link_map[link] += 1
+        # If the conterpart is unknown.
+        else:
+          link = f'{target_vm["name"]}:{UNKNOWN_HOST}'
+          order = vm_link_map.setdefault(link, 0)
+          outputPAJEStartLink(tt_seconds,target_vm["name"], size, f'{link}|{order}', unk_output)
+          vm_link_map[link] += 1
 
-        # Check if vm is the receiver of the message.
-        if(receiver == vm["ip"]):
-          vm_counterpart = searchVM(vm_list, "ip", sender) 
-          # Check if the counterpar isnt't another vm from experiment (UNKNOWN_HOST).    
-          if(not vm_counterpart):
-            link = f'{UNKNOWN_HOST}:{vm["name"]}'
-            order = vm_link_map.setdefault(link, 0)
-            outputPAJEStartLink((tt_seconds), UNKNOWN_HOST, size, f'{link}|{order}', unk_output)
-            vm_link_map[link] += 1
+      # Check if vm is the receiver of the message.
+      if(receiver == target_vm["ip"]):
+        vm_counterpart = searchVM(vm_list, "ip", sender) 
+        # Check if the counterpar isnt't another vm from experiment (UNKNOWN_HOST).    
+        if(not vm_counterpart):
+          link = f'{UNKNOWN_HOST}:{target_vm["name"]}'
+          order = vm_link_map.setdefault(link, 0)
+          outputPAJEStartLink((tt_seconds), UNKNOWN_HOST, size, f'{link}|{order}', unk_output)
+          vm_link_map[link] += 1
+
+    try:
+      # Recover next packet from 'all_pkts' into 'next_pkt', retuning None if there in no next packet (except StopIteration).
+      next_pkt = all_pkts.next()
+    except (StopIteration) as e:
+      return None
 
 # Calling trace generators for each vm into 'host'.
 def generateTraceFiles(host: dict, vm_list: list, unk_output):
