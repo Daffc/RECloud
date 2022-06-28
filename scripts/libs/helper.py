@@ -129,8 +129,8 @@ def recoverCredentials():
   
   print("Inform the User and Password to access the Machines:")
   user = input("Inform the User:")
-  password = getpass()
-
+  #password = getpass()
+  password = input("Password:")
   return user, password
 
 
