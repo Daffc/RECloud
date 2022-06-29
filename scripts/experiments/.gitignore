@@ -1,0 +1,7 @@
+.credentials
+results/*/
+vms
+nodos
+credentials
+logLoad.txt
+logUnoad.txt
