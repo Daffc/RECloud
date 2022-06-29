@@ -58,7 +58,7 @@ def setAllEnvironments(clients, password):
 def runAllMonitoring(clients, password, sampling_delay):
 
   print(f'Calling \'startMonitoring.py\' for all clients ({clients.hosts})... ', flush=True)
-  clients.run_command(f'echo {password} | sudo -S -- sh -c ". {VENV_PATH} && {MONITOR_PATH} -d {sampling_delay} -e {ENVIRONMENT_PATH}"')
+  clients.run_command(f'echo {password} | sudo -S -- sh -c ". {VENV_PATH} && nice -n -20 {MONITOR_PATH} -d {sampling_delay} -e {ENVIRONMENT_PATH}"')
 
 # Calling Chrony to synchonize nodes pointed be 'clients'
 def synchronizeNodes(clients, password):
