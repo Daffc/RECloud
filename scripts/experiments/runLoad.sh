@@ -100,7 +100,7 @@ main() {
 
     # START STRESS IN VIRTUAL MACHINES
     printf "Starting CPU stress to all cores of all virtual machines..."
-    checkComandReturn parallel-ssh -h all_vms -i "nohup stress-ng --matrix 0 -t 0 > /dev/null 2>&1 &" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
+    checkComandReturn parallel-ssh -h all_vms -i "nohup stress-ng --matrix 0 --vm 1 -t 0 > /dev/null 2>&1 &" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
     printf "OK\n" 
 
 
