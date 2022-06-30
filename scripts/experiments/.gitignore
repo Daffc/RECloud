@@ -1,6 +1,7 @@
 .credentials
 results/*/
-vms
+all_vms
+half_vms
 nodos
 credentials
 logLoad.txt

@@ -1,6 +1,6 @@
-#/bash/bin
+#!/bin/bash
 
-# RECOVERING VMS IPs to vms file
+# RECOVERING VMS IPs to all_vms file
 # cat /tmp/experiment_28-06-2022_15\:45\:42/environments.json  | json_pp | grep "virtual_machines" -A 10 | grep "ip" | cut -d : -f 2 | cut -d \" -f 2
 
 LOG_OUTPUT="logLoad.txt"
@@ -77,7 +77,7 @@ main() {
     # CHECKING FILES
     CheckFile "credentials";
     CheckFile "nodos";
-    CheckFile "vms";
+    CheckFile "all_vms";
 
     # GETTING CREDENTIALS
     printf "GETTING CREDENTIALS... ";
@@ -91,24 +91,16 @@ main() {
     checkComandReturn parallel-ssh -h nodos -i "cpufreq-info |  grep 'frequency is'" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
     printf "OK\n" 
     
-    # SETTING ALL VMS TO USE 2 VCORES
-    printf "SETTING CORES TO ALL VMS... \n";
-    printf "\tSHUTTING DOWN VMS... ";
-    parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; virsh shutdown testvm\${VAR: -1}-1;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
-    sleep 5;
-    printf "OK\n";
-    printf "\tCHANGING VMS CONFIGS AND BOOTING... ";
-    checkComandReturn parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; echo $PASSWORD| sudo -S sed -i \"s/<vcpu placement='static'>1<\\/vcpu>/<vcpu placement='static'>2<\\/vcpu>/g\" /etc/libvirt/qemu/testvm\${VAR: -1}-1.xml;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT; 
-    checkComandReturn parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; echo $PASSWORD| sudo -S virsh define /etc/libvirt/qemu/testvm\${VAR: -1}-1.xml;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT; 
+    # SETTING 2 VMS PER NODE
+    printf "\tBOOTING 2 VMS PER NODE... ";
     parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; virsh start testvm\${VAR: -1}-1;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
+    parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; virsh start testvm\${VAR: -1}-2;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
     sleep 5;
-    checkComandReturn parallel-ssh -h nodos -i 'VAR="$(hostname)"; echo $VAR;  virsh vcpucount testvm${VAR: -1}-1' >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
-    printf "OK\n";
     printf "OK\n";
 
     # START STRESS IN VIRTUAL MACHINES
     printf "Starting CPU stress to all cores of all virtual machines..."
-    checkComandReturn parallel-ssh -h vms -i "nohup stress-ng --matrix 0 -t 0 > /dev/null 2>&1 &" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
+    checkComandReturn parallel-ssh -h all_vms -i "nohup stress-ng --matrix 0 -t 0 > /dev/null 2>&1 &" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
     printf "OK\n" 
 
 
@@ -124,7 +116,7 @@ main() {
     printf "***** FINISHING EXPERIMENTS *****\n"
 
     printf "Stopping CPU stress to all cores of all virtual machines..."
-    checkComandReturn parallel-ssh -h vms -i "killall stress-ng" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
+    checkComandReturn parallel-ssh -h all_vms -i "killall stress-ng" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
     printf "OK\n" 
 
     # SETTING CORES IN 'ondemand' MODE

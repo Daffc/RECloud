@@ -1,6 +1,5 @@
-#/bash/bin
+#!/bin/bash
 
-# RECOVERING VMS IPs to vms file
 # cat /tmp/experiment_28-06-2022_15\:45\:42/environments.json  | json_pp | grep "virtual_machines" -A 10 | grep "ip" | cut -d : -f 2 | cut -d \" -f 2
 
 LOG_OUTPUT="logUnload.txt";
@@ -78,7 +77,6 @@ main() {
     # CHECKING FILES
     CheckFile "credentials";
     CheckFile "nodos";
-    CheckFile "vms";
 
     # GETTING CREDENTIALS
     printf "GETTING CREDENTIALS... ";
@@ -95,19 +93,11 @@ main() {
     checkComandReturn parallel-ssh -h nodos -i "cpufreq-info |  grep 'frequency is'" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
     printf "OK\n";
 
-    # SETTING ALL VMS TO USE 1 VCORES
-    printf "SETTING CORES TO ALL VMS... \n";
-    printf "\tSHUTTING DOWN VMS... ";
-    parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; virsh shutdown testvm\${VAR: -1}-1;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
-    sleep 5;
-    printf "OK\n";
-    printf "\tCHANGING VMS CONFIGS AND BOOTING... ";
-    checkComandReturn parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; echo $PASSWORD| sudo -S sed -i \"s/<vcpu placement='static'>2<\\/vcpu>/<vcpu placement='static'>1<\\/vcpu>/g\" /etc/libvirt/qemu/testvm\${VAR: -1}-1.xml;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT; 
-    checkComandReturn parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; echo $PASSWORD| sudo -S virsh define /etc/libvirt/qemu/testvm\${VAR: -1}-1.xml;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT; 
+    # SETTING 1 VM PER NODE
+    printf "BOOTING 1 VMS PER NODE... ";
     parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; virsh start testvm\${VAR: -1}-1;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
+    parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; virsh shutdown testvm\${VAR: -1}-2;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
     sleep 5;
-    checkComandReturn parallel-ssh -h nodos -i 'VAR="$(hostname)"; echo $VAR;  virsh vcpucount testvm${VAR: -1}-1' >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
-    printf "OK\n";
     printf "OK\n";
 
     printf "***** RUNNING EXPERIMENTS *****\n";

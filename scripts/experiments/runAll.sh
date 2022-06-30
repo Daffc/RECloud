@@ -1,2 +1,3 @@
-./runLoad.sh 1 1;
-./runUnload.sh 1 1;
+#!/bin/bash
+./runLoad.sh 1000 60;
+./runUnload.sh 1000 60;
