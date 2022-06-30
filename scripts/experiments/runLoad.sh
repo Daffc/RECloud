@@ -3,6 +3,7 @@
 # RECOVERING VMS IPs to vms file
 # cat /tmp/experiment_28-06-2022_15\:45\:42/environments.json  | json_pp | grep "virtual_machines" -A 10 | grep "ip" | cut -d : -f 2 | cut -d \" -f 2
 
+LOG_OUTPUT="logLoad.txt"
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 EXPERIMENTS_DELAYS=(0.1 0.2 0.5 1 2)
@@ -13,16 +14,16 @@ EXPERIMENT_DURATION=$2
 # CHECKING IF EXISTS WITH ERROR, ENDING THE PROCESS.
 function checkComandReturn() {
     if ! $*; then 
-        printf "\n${RED}ERROR:${NC} While executing:\n"
-        printf "\t$*\n"
-        exit
+        printf "\n${RED}ERROR:${NC} While executing:\n";
+        printf "\t$*\n";
+        exit 1;
     fi
 }
 
 function CheckFile() {
     if [[ ! -f $* ]];then
-        echo "File '$*' needs to be in current directory" 
-        exit 
+        echo "File '$*' needs to be in current directory";
+        exit 1;
     fi
 }
 
@@ -36,8 +37,7 @@ function checkCreateFolders(){
     if [[ ! -d "$OUT_MAIN_FOLDER" ]]; then 
         mkdir "$OUT_MAIN_FOLDER";
     fi
-    retval=$OUT_MAIN_FOLDER
-
+    retval=$OUT_MAIN_FOLDER;
 }
 
 function createExperimentFolder(){
@@ -72,54 +72,65 @@ main() {
         createExperimentFolder "$OUT_MAIN_FOLDER/$delay"
     done;
 
-    echo "" > logLoad.txt;
+    echo "" > $LOG_OUTPUT;
 
     # CHECKING FILES
-    CheckFile "credentials"
-    CheckFile "nodos"
-    CheckFile "vms"
+    CheckFile "credentials";
+    CheckFile "nodos";
+    CheckFile "vms";
 
     # GETTING CREDENTIALS
-    printf "GETTING CREDENTIALS... "
-    USER=$(head -n 1 credentials) 
-    PASSWORD=$(tail -n 1 credentials)
-
-    echo "[$USER] [$PASSWORD]"
-    printf "OK\n" 
-
+    printf "GETTING CREDENTIALS... ";
+    USER=$(head -n 1 credentials);
+    PASSWORD=$(tail -n 1 credentials);
+    printf "OK\n";
 
     # SETTING CORES IN 'performance' MODE
-    printf "SETTING NODES IN PERFORMANCE..."
-    checkComandReturn parallel-ssh -h nodos -i "echo $PASSWORD| sudo -S  cpupower frequency-set -g performance" >> logLoad.txt 2>> logLoad.txt;
-    checkComandReturn parallel-ssh -h nodos -i "cpufreq-info |  grep 'frequency is'" >> logLoad.txt 2>> logLoad.txt;
+    printf "SETTING NODES CORES IN PERFORMANCE STATE..."
+    checkComandReturn parallel-ssh -h nodos -i "echo $PASSWORD| sudo -S  cpupower frequency-set -g performance" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
+    checkComandReturn parallel-ssh -h nodos -i "cpufreq-info |  grep 'frequency is'" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
     printf "OK\n" 
     
+    # SETTING ALL VMS TO USE 2 VCORES
+    printf "SETTING CORES TO ALL VMS... \n";
+    printf "\tSHUTTING DOWN VMS... ";
+    parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; virsh shutdown testvm\${VAR: -1}-1;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
+    sleep 5;
+    printf "OK\n";
+    printf "\tCHANGING VMS CONFIGS AND BOOTING... ";
+    checkComandReturn parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; echo $PASSWORD| sudo -S sed -i \"s/<vcpu placement='static'>1<\\/vcpu>/<vcpu placement='static'>2<\\/vcpu>/g\" /etc/libvirt/qemu/testvm\${VAR: -1}-1.xml;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT; 
+    checkComandReturn parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; echo $PASSWORD| sudo -S virsh define /etc/libvirt/qemu/testvm\${VAR: -1}-1.xml;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT; 
+    parallel-ssh -h nodos -i "VAR=\"\$(hostname)\"; virsh start testvm\${VAR: -1}-1;" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
+    sleep 5;
+    checkComandReturn parallel-ssh -h nodos -i 'VAR="$(hostname)"; echo $VAR;  virsh vcpucount testvm${VAR: -1}-1' >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
+    printf "OK\n";
+    printf "OK\n";
 
     # START STRESS IN VIRTUAL MACHINES
     printf "Starting CPU stress to all cores of all virtual machines..."
-    checkComandReturn parallel-ssh -h vms -i "nohup stress-ng --matrix 0 -t 0 > /dev/null 2>&1 &" >> logLoad.txt 2>> logLoad.txt;
+    checkComandReturn parallel-ssh -h vms -i "nohup stress-ng --matrix 0 -t 0 > /dev/null 2>&1 &" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
     printf "OK\n" 
 
 
     printf "***** RUNNING EXPERIMENTS *****\n"
-    checkComandReturn . ~/tg_scripts/venv/bin/activate >> logLoad.txt 2>> logLoad.txt;
+    checkComandReturn . ~/tg_scripts/venv/bin/activate >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
 
     for delay in "${EXPERIMENTS_DELAYS[@]}"; do
         for (( t=1; t<=$EXPERIMENT_TIMES; t++ )); do
             printf "\tITERATION (DELAY:$delay\tITERATION:$t)\n"
-            checkComandReturn ~/tg_scripts/scripts/monitoring_scripts/startAllMonitoring.py nodos "$OUT_MAIN_FOLDER/$delay" -d $delay -t $EXPERIMENT_DURATION >> logLoad.txt 2>> logLoad.txt <./credentials;
+            checkComandReturn ~/tg_scripts/scripts/monitoring_scripts/startAllMonitoring.py nodos "$OUT_MAIN_FOLDER/$delay" -d $delay -t $EXPERIMENT_DURATION >> $LOG_OUTPUT 2>> $LOG_OUTPUT <./credentials;
         done;
     done;
     printf "***** FINISHING EXPERIMENTS *****\n"
 
     printf "Stopping CPU stress to all cores of all virtual machines..."
-    checkComandReturn parallel-ssh -h vms -i "killall stress-ng" >> logLoad.txt 2>> logLoad.txt;
+    checkComandReturn parallel-ssh -h vms -i "killall stress-ng" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
     printf "OK\n" 
 
     # SETTING CORES IN 'ondemand' MODE
-    printf "SETTING NODES IN ONDEMAND... "
-    checkComandReturn parallel-ssh -h nodos -i "echo $PASSWORD| sudo -S  cpupower frequency-set -g ondemand" >> logLoad.txt 2>> logLoad.txt;
-    checkComandReturn parallel-ssh -h nodos -i "cpufreq-info |  grep 'frequency is'" >> logLoad.txt 2>> logLoad.txt;
+    printf "SETTING NODES CORES IN ONDEMAND STATE... "
+    checkComandReturn parallel-ssh -h nodos -i "echo $PASSWORD| sudo -S  cpupower frequency-set -g ondemand" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
+    checkComandReturn parallel-ssh -h nodos -i "cpufreq-info |  grep 'frequency is'" >> $LOG_OUTPUT 2>> $LOG_OUTPUT;
     printf "OK\n" 
 
 }
