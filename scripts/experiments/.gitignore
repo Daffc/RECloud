@@ -1,5 +1,6 @@
 .credentials
 results/*/
+venv/*/
 all_vms
 half_vms
 nodos
