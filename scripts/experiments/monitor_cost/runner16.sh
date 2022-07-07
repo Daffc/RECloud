@@ -5,7 +5,7 @@ EXPERIMENT_TIMES=$2
 HOSTFILE=$3
 NVMS=$4
 PROGRAMS=("ep.A.$NVMS" "cg.A.$NVMS" "dt.W.x BH")
-PERF_EVENTS="-e task-clock,cpu-clock"
+PERF_EVENTS="-e task-clock,cpu-clock,context-switches,cpu-migrations"
 
 function checkCreateFolders(){
     if [[ ! -d "results" ]];then
