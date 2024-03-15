@@ -12,6 +12,11 @@
 // Array of 'TStressorsData' used as data argument for each stressor.
 TStressorsData *s_data_array; 
 
+// Defining global pthread controllers variables.
+pthread_barrier_t b_init_values;
+pthread_mutex_t *wait_mutexes;
+pthread_mutex_t *start_mutexes;
+
 
 // -------------------- EXTERNAL FUNCTIONS --------------------
 
@@ -19,9 +24,6 @@ TStressorsData *s_data_array;
 // from each 'TStressorsData' structure to 'shared_mem_load_bytes_pointer', 'shared_cpu_dec_load' and 'shared_delay_interval', respectively. 
 void initializeStressor(pthread_t *stressors, unsigned char n_stressors, long long *shared_mem_load_bytes_pointer, double *shared_cpu_dec_load, double *shared_delay_interval){
     
-    extern pthread_barrier_t b_init_values;
-    extern pthread_mutex_t *wait_mutexes;
-    extern pthread_mutex_t *start_mutexes;
     
     unsigned char i;
 
@@ -145,8 +147,6 @@ void *startStressors (void *data){
     char *mem_stressor_alloc;
     
     long long prev_mem_load;
-
-    extern pthread_barrier_t b_init_values;    
 
     struct timespec ts_start_mem;
     struct timespec ts_end_mem;

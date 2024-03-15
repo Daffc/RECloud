@@ -205,13 +205,6 @@ int main(int argc, char *argv[]){
     struct timespec ts_prev;            // Current time of previour time sampling (ts_sampling).
 
     pthread_t *stressors;               // Pointer to array of descriptors of stressor threads.
-
-    // External mutex for stressors controll.
-    extern pthread_barrier_t b_init_values;
-    extern pthread_mutex_t *wait_mutexes;
-    extern pthread_mutex_t *start_mutexes;
-
-
     TTraceEntry t_entry;                // Structure that stores information for trace entry according to Timestamp.
 
     FILE *f_trace;                      // The file descriptor of trace that will be read.

@@ -1,9 +1,9 @@
 #ifndef __STRESSOR__
     #define __STRESSOR__
     
-    pthread_barrier_t b_init_values;
-    pthread_mutex_t *wait_mutexes;
-    pthread_mutex_t *start_mutexes;
+    extern pthread_barrier_t b_init_values;
+    extern pthread_mutex_t *wait_mutexes;
+    extern pthread_mutex_t *start_mutexes;
 
     // Used as data argument for each stressor in 'pthread_create'.
     typedef struct t_stressorsData{
